@@ -38,7 +38,8 @@ class VisualModelDecision(BaseModel):
 class OpenAIParser(PDFParser):
     api_key: str
     pdf_content: bytes
-    model: str
+    description_model: str
+    visual_model: str
     image_retries: int = 3
 
     async def parse(self) -> ParsedPDFResult:
@@ -103,7 +104,7 @@ class OpenAIParser(PDFParser):
                     ],
                 },  # type: ignore
             ],
-            model=self.model,
+            model=self.description_model,
         )
         return response.choices[0].message.content or ""
 
@@ -135,7 +136,7 @@ class OpenAIParser(PDFParser):
                     ],
                 },  # type: ignore
             ],
-            model=self.model,
+            model=self.visual_model,
             response_format=VisualModelDecision,
         )
         return response.choices[0].message.parsed or VisualModelDecision(
