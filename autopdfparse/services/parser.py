@@ -25,12 +25,9 @@ class PDFParser:
 
     pdf_content: bytes
     vision_service: VisionService
-    image_retries: int = 3
 
     @classmethod
-    async def create(
-        cls, file_path: str, vision_service: VisionService, image_retries: int = 3
-    ) -> "PDFParser":
+    async def create(cls, file_path: str, vision_service: VisionService) -> "PDFParser":
         """
         Factory method to create a parser from a file path.
 
@@ -52,7 +49,6 @@ class PDFParser:
             return cls(
                 pdf_content=pdf_content,
                 vision_service=vision_service,
-                image_retries=image_retries,
             )
         except FileNotFoundError:
             raise PDFParsingError(f"File not found: {file_path}")
@@ -61,7 +57,7 @@ class PDFParser:
 
     @classmethod
     async def from_bytes(
-        cls, pdf_content: bytes, vision_service: VisionService, image_retries: int = 3
+        cls, pdf_content: bytes, vision_service: VisionService
     ) -> "PDFParser":
         """
         Factory method to create a parser from bytes.
@@ -76,8 +72,7 @@ class PDFParser:
         """
         return cls(
             pdf_content=pdf_content,
-            vision_service=vision_service,
-            image_retries=image_retries,
+            vision_service=vision_service
         )
 
     async def parse(self) -> ParsedPDFResult:

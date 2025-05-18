@@ -2,25 +2,26 @@
 Anthropic Claude-based PDF parser implementation.
 """
 
-import asyncio
 import importlib.util
+from asyncio import Semaphore
 from dataclasses import dataclass
 
+from autopdfparse.config import Config
 from autopdfparse.default_prompts import (
     describe_image_system_prompt,
     layout_dependent_system_prompt,
 )
 from autopdfparse.exceptions import APIError, ModelError
 from autopdfparse.models import VisualModelDecision
-from autopdfparse.services import VisionService
-
-from ..services.parser import PDFParser
+from autopdfparse.services import PDFParser, VisionService
 
 # Check if Anthropic package is installed
 ANTHROPIC_AVAILABLE = (
     importlib.util.find_spec("anthropic") is not None
     and importlib.util.find_spec("json-repair") is not None
 )
+
+_semaphore = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
 
 
 @dataclass
@@ -34,7 +35,6 @@ class AnthropicVisionService(VisionService):
     visual_model: str
     describe_image_prompt: str
     layout_dependent_prompt: str
-    retries: int = 3
 
     @classmethod
     def create(
@@ -70,7 +70,6 @@ class AnthropicVisionService(VisionService):
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
-            retries=retries,
             layout_dependent_prompt=layout_dependent_prompt,
             describe_image_prompt=describe_image_prompt,
         )
@@ -86,7 +85,7 @@ class AnthropicVisionService(VisionService):
             Text description of the image content
 
         Raises:
-            APIError: If the API call fails after retries
+            APIError: If the API call fails
             ModelError: If Anthropic package is not installed
         """
         if not ANTHROPIC_AVAILABLE:
@@ -94,13 +93,12 @@ class AnthropicVisionService(VisionService):
                 "Anthropic package is not installed. Install it with 'pip install \"autopdfparse[anthropic]\"'"
             )
 
-        from anthropic import AsyncAnthropic
+        try:
+            from anthropic import AsyncAnthropic
 
-        last_error = None
-        for attempt in range(self.retries):
-            try:
-                client = AsyncAnthropic(api_key=self.api_key)
+            client = AsyncAnthropic(api_key=self.api_key)
 
+            async with _semaphore:
                 message = await client.messages.create(
                     model=self.description_model,
                     max_tokens=64000,
@@ -126,16 +124,8 @@ class AnthropicVisionService(VisionService):
                     ],
                 )
                 return message.content[0].text  # type: ignore
-            except Exception as e:
-                last_error = e
-                if attempt < self.retries - 1:
-                    wait_time = (2**attempt) + (0.1 * attempt)
-                    await asyncio.sleep(wait_time)
-
-        # If all retries failed
-        raise APIError(
-            f"Failed to describe image after {self.retries} attempts: {str(last_error)}"
-        )
+        except Exception as e:
+            raise APIError(f"Failed to describe image: {str(e)}")
 
     async def is_layout_dependent(self, image: str) -> bool:
         """
@@ -148,7 +138,7 @@ class AnthropicVisionService(VisionService):
             True if the content is layout-dependent, False otherwise
 
         Raises:
-            APIError: If the API call fails after retries
+            APIError: If the API call fails
             ModelError: If Anthropic package is not installed
         """
         if not ANTHROPIC_AVAILABLE:
@@ -156,13 +146,13 @@ class AnthropicVisionService(VisionService):
                 "Anthropic package is not installed. Install it with 'pip install \"autopdfparse[anthropic]\"'"
             )
 
-        import json_repair
-        from anthropic import AsyncAnthropic
+        try:
+            import json_repair
+            from anthropic import AsyncAnthropic
 
-        for attempt in range(self.retries):
-            try:
-                client = AsyncAnthropic(api_key=self.api_key)
+            client = AsyncAnthropic(api_key=self.api_key)
 
+            async with _semaphore:
                 message = await client.messages.create(
                     model=self.visual_model,
                     max_tokens=100,
@@ -195,14 +185,9 @@ class AnthropicVisionService(VisionService):
                 text_content = message.content[0].text  # type: ignore
                 result = VisualModelDecision(**json_repair.loads((text_content)))  # type: ignore
                 return result.content_is_layout_dependent
-
-            except Exception:
-                if attempt < self.retries - 1:
-                    wait_time = (2**attempt) + (0.1 * attempt)
-                    await asyncio.sleep(wait_time)
-
-        # Default to True on failure to ensure we don't miss layout-dependent content
-        return True
+        except Exception:
+            # Default to True on failure to ensure we don't miss layout-dependent content
+            return True
 
 
 class AnthropicParser:
@@ -220,7 +205,6 @@ class AnthropicParser:
         api_key: str,
         description_model: str = "claude-3-opus-20240229",
         visual_model: str = "claude-3-haiku-20240307",
-        retries: int = 3,
     ) -> PDFParser:
         """
         Create a PDF parser from a file path using Anthropic Claude vision services.
@@ -247,11 +231,10 @@ class AnthropicParser:
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
-            retries=retries,
         )
 
         return await PDFParser.create(
-            file_path=file_path, vision_service=vision_service, image_retries=retries
+            file_path=file_path, vision_service=vision_service
         )
 
     @classmethod
@@ -261,7 +244,6 @@ class AnthropicParser:
         api_key: str,
         description_model: str = "claude-3-opus-20240229",
         visual_model: str = "claude-3-haiku-20240307",
-        retries: int = 3,
     ) -> PDFParser:
         """
         Create a PDF parser from bytes using Anthropic Claude vision services.
@@ -271,7 +253,6 @@ class AnthropicParser:
             api_key: Anthropic API key
             description_model: Model to use for describing content
             visual_model: Model to use for layout dependency detection
-            retries: Number of retries for API calls
 
         Returns:
             PDFParser instance configured with AnthropicVisionService
@@ -288,11 +269,9 @@ class AnthropicParser:
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
-            retries=retries,
         )
 
         return await PDFParser.from_bytes(
             pdf_content=pdf_content,
             vision_service=vision_service,
-            image_retries=retries,
         )

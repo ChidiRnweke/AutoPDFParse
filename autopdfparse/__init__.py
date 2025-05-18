@@ -2,6 +2,7 @@
 AutoPDFParse - A package for extracting content from PDF documents using AI.
 """
 
+from .config import Config
 from .exceptions import (
     APIError,
     AutoPDFParseError,
@@ -16,6 +17,8 @@ from .services import PDFParser, VisionService
 __version__ = "0.1.0"
 
 __all__ = [
+    # Config
+    "Config",
     # Exceptions
     "AutoPDFParseError",
     "PDFParsingError",

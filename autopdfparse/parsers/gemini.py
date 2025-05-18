@@ -2,10 +2,11 @@
 Google Gemini-based PDF parser implementation.
 """
 
-import asyncio
 import importlib.util
+from asyncio import Semaphore
 from dataclasses import dataclass
 
+from autopdfparse.config import Config
 from autopdfparse.default_prompts import (
     describe_image_system_prompt,
     layout_dependent_system_prompt,
@@ -13,10 +14,11 @@ from autopdfparse.default_prompts import (
 from autopdfparse.exceptions import APIError, ModelError
 from autopdfparse.models import VisualModelDecision
 from autopdfparse.services import VisionService
+from autopdfparse.services.parser import PDFParser
 
-from ..services.parser import PDFParser
+GEMINI_AVAILABLE = importlib.util.find_spec("google-genai") is not None
 
-GENAI_AVAILABLE = importlib.util.find_spec("google-genai") is not None
+_semaphore = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
 
 
 @dataclass
@@ -30,7 +32,6 @@ class GeminiVisionService(VisionService):
     visual_model: str
     describe_image_prompt: str
     layout_dependent_prompt: str
-    retries: int = 3
 
     @classmethod
     def create(
@@ -38,7 +39,6 @@ class GeminiVisionService(VisionService):
         api_key: str,
         description_model: str = "gemini-1.5-pro",
         visual_model: str = "gemini-1.5-flash",
-        retries: int = 3,
         describe_image_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
     ) -> "GeminiVisionService":
@@ -59,7 +59,7 @@ class GeminiVisionService(VisionService):
         Raises:
             ModelError: If Google GenerativeAI package is not installed
         """
-        if not GENAI_AVAILABLE:
+        if not GEMINI_AVAILABLE:
             raise ModelError(
                 "Google GenerativeAI package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
             )
@@ -68,7 +68,6 @@ class GeminiVisionService(VisionService):
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
-            retries=retries,
             describe_image_prompt=describe_image_prompt,
             layout_dependent_prompt=layout_dependent_prompt,
         )
@@ -84,22 +83,22 @@ class GeminiVisionService(VisionService):
             Text description of the image content
 
         Raises:
-            APIError: If the API call fails after retries
+            APIError: If the API call fails
             ModelError: If Google GenerativeAI package is not installed
         """
-        if not GENAI_AVAILABLE:
+        if not GEMINI_AVAILABLE:
             raise ModelError(
                 "Google GenerativeAI package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
             )
 
-        from google import genai
-        from google.genai import types
+        try:
+            from google import genai
+            from google.genai import types
 
-        last_error = None
-        for attempt in range(self.retries):
-            try:
-                client = genai.Client(api_key=self.api_key)
+            client = genai.Client(api_key=self.api_key)
 
+            # Use semaphore to limit concurrent requests
+            async with _semaphore:
                 # Generate the response
                 response = await client.aio.models.generate_content(
                     model=self.description_model,
@@ -116,16 +115,8 @@ class GeminiVisionService(VisionService):
                 )
 
                 return response.text or ""
-            except Exception as e:
-                last_error = e
-                if attempt < self.retries - 1:
-                    wait_time = (2**attempt) + (0.1 * attempt)
-                    await asyncio.sleep(wait_time)
-
-        # If all retries failed
-        raise APIError(
-            f"Failed to describe image after {self.retries} attempts: {str(last_error)}"
-        )
+        except Exception as e:
+            raise APIError(f"Failed to describe image: {str(e)}")
 
     async def is_layout_dependent(self, image: str) -> bool:
         """
@@ -138,22 +129,21 @@ class GeminiVisionService(VisionService):
             True if the content is layout-dependent, False otherwise
 
         Raises:
-            APIError: If the API call fails after retries
+            APIError: If the API call fails
             ModelError: If Google GenerativeAI package is not installed
         """
-        if not GENAI_AVAILABLE:
+        if not GEMINI_AVAILABLE:
             raise ModelError(
                 "Google GenerativeAI package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
             )
 
-        from google import genai
-        from google.genai import types
+        try:
+            from google import genai
+            from google.genai import types
 
-        for attempt in range(self.retries):
-            try:
-                client = genai.Client(api_key=self.api_key)
+            client = genai.Client(api_key=self.api_key)
 
-                # Generate the response
+            async with _semaphore:
                 response = await client.aio.models.generate_content(
                     model=self.description_model,
                     contents=[
@@ -171,13 +161,9 @@ class GeminiVisionService(VisionService):
                 )
 
                 return response.parsed.content_is_layout_dependent  # type: ignore
-            except Exception:
-                if attempt < self.retries - 1:
-                    wait_time = (2**attempt) + (0.1 * attempt)
-                    await asyncio.sleep(wait_time)
-
-        # Default to True on failure to ensure we don't miss layout-dependent content
-        return True
+        except Exception:
+            # Default to True on failure to ensure we don't miss layout-dependent content
+            return True
 
 
 class GeminiParser:
@@ -195,7 +181,6 @@ class GeminiParser:
         api_key: str,
         description_model: str = "gemini-1.5-pro",
         visual_model: str = "gemini-1.5-flash",
-        retries: int = 3,
     ) -> PDFParser:
         """
         Create a PDF parser from a file path using Google Gemini vision services.
@@ -205,7 +190,6 @@ class GeminiParser:
             api_key: Google API key
             description_model: Model to use for describing content
             visual_model: Model to use for layout dependency detection
-            retries: Number of retries for API calls
 
         Returns:
             PDFParser instance configured with GeminiVisionService
@@ -213,7 +197,7 @@ class GeminiParser:
         Raises:
             ModelError: If Google GenerativeAI package is not installed
         """
-        if not GENAI_AVAILABLE:
+        if not GEMINI_AVAILABLE:
             raise ModelError(
                 "Google GenerativeAI package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
             )
@@ -222,11 +206,10 @@ class GeminiParser:
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
-            retries=retries,
         )
 
         return await PDFParser.create(
-            file_path=file_path, vision_service=vision_service, image_retries=retries
+            file_path=file_path, vision_service=vision_service
         )
 
     @classmethod
@@ -236,7 +219,6 @@ class GeminiParser:
         api_key: str,
         description_model: str = "gemini-1.5-pro",
         visual_model: str = "gemini-1.5-flash",
-        retries: int = 3,
     ) -> PDFParser:
         """
         Create a PDF parser from bytes using Google Gemini vision services.
@@ -254,7 +236,7 @@ class GeminiParser:
         Raises:
             ModelError: If Google GenerativeAI package is not installed
         """
-        if not GENAI_AVAILABLE:
+        if not GEMINI_AVAILABLE:
             raise ModelError(
                 "Google GenerativeAI package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
             )
@@ -263,11 +245,9 @@ class GeminiParser:
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
-            retries=retries,
         )
 
         return await PDFParser.from_bytes(
             pdf_content=pdf_content,
             vision_service=vision_service,
-            image_retries=retries,
         )

@@ -2,21 +2,21 @@
 OpenAI-based PDF parser implementation.
 """
 
-import asyncio
 import importlib.util
+from asyncio import Semaphore
 from dataclasses import dataclass
 
+from autopdfparse.config import Config
 from autopdfparse.default_prompts import (
     describe_image_system_prompt,
     layout_dependent_system_prompt,
 )
 from autopdfparse.exceptions import APIError, ModelError
 from autopdfparse.models import VisualModelDecision
-from autopdfparse.services import VisionService
-
-from ..services.parser import PDFParser
+from autopdfparse.services import PDFParser, VisionService
 
 OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
+_semaphore = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
 
 
 @dataclass
@@ -30,9 +30,6 @@ class OpenAIVisionService(VisionService):
     visual_model: str
     describe_image_prompt: str
     layout_dependent_prompt: str
-    description_model: str
-    visual_model: str
-    retries: int = 3
 
     @classmethod
     def create(
@@ -40,7 +37,6 @@ class OpenAIVisionService(VisionService):
         api_key: str,
         description_model: str = "gpt-4.1",
         visual_model: str = "gpt-4.1-mini",
-        retries: int = 3,
         describe_image_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
     ) -> "OpenAIVisionService":
@@ -68,7 +64,6 @@ class OpenAIVisionService(VisionService):
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
-            retries=retries,
             describe_image_prompt=describe_image_prompt,
             layout_dependent_prompt=layout_dependent_prompt,
         )
@@ -92,13 +87,13 @@ class OpenAIVisionService(VisionService):
                 "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
             )
 
-        from openai import AsyncOpenAI
+        # Override the default retry count with the instance's retry count
 
-        last_error = None
-        for attempt in range(self.retries):
-            try:
-                openai = AsyncOpenAI(api_key=self.api_key)
+        try:
+            from openai import AsyncOpenAI
 
+            openai = AsyncOpenAI(api_key=self.api_key)
+            async with _semaphore:
                 response = await openai.responses.create(
                     input=[
                         {
@@ -122,16 +117,8 @@ class OpenAIVisionService(VisionService):
                     model=self.description_model,
                 )
                 return response.output_text
-            except Exception as e:
-                last_error = e
-                if attempt < self.retries - 1:
-                    wait_time = (2**attempt) + (0.1 * attempt)
-                    await asyncio.sleep(wait_time)
-
-        # If all retries failed
-        raise APIError(
-            f"Failed to describe image after {self.retries} attempts: {str(last_error)}"
-        )
+        except Exception as e:
+            raise APIError(f"Failed to describe image  {str(e)}")
 
     async def is_layout_dependent(self, image: str) -> bool:
         """
@@ -154,10 +141,9 @@ class OpenAIVisionService(VisionService):
 
         from openai import AsyncOpenAI
 
-        for attempt in range(self.retries):
-            try:
-                openai = AsyncOpenAI(api_key=self.api_key)
-
+        try:
+            openai = AsyncOpenAI(api_key=self.api_key)
+            async with _semaphore:
                 response = await openai.responses.parse(
                     input=[
                         {
@@ -181,16 +167,15 @@ class OpenAIVisionService(VisionService):
                     model=self.visual_model,
                     text_format=VisualModelDecision,
                 )
-                result = response.output_parsed or VisualModelDecision(
-                    content_is_layout_dependent=False
-                )
-                return result.content_is_layout_dependent
-            except Exception:
-                if attempt < self.retries - 1:
-                    wait_time = (2**attempt) + (0.1 * attempt)
-                    await asyncio.sleep(wait_time)
 
-        return True
+                return (
+                    response.output_parsed.content_is_layout_dependent
+                    if response.output_parsed
+                    else False
+                )
+        except Exception:
+            # Default to True on failure to ensure we don't miss layout-dependent content
+            return True
 
 
 class OpenAIParser:
@@ -210,7 +195,6 @@ class OpenAIParser:
         visual_model: str = "gpt-4.1-mini",
         description_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
-        retries: int = 3,
     ) -> PDFParser:
         """
         Create a PDF parser from a file path using OpenAI vision services.
@@ -239,11 +223,10 @@ class OpenAIParser:
             visual_model=visual_model,
             describe_image_prompt=description_prompt,
             layout_dependent_prompt=layout_dependent_prompt,
-            retries=retries,
         )
 
         return await PDFParser.create(
-            file_path=file_path, vision_service=vision_service, image_retries=retries
+            file_path=file_path, vision_service=vision_service
         )
 
     @classmethod
@@ -255,7 +238,6 @@ class OpenAIParser:
         visual_model: str = "gpt-4.1-mini",
         description_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
-        retries: int = 3,
     ) -> PDFParser:
         """
         Create a PDF parser from bytes using OpenAI vision services.
@@ -284,11 +266,9 @@ class OpenAIParser:
             visual_model=visual_model,
             describe_image_prompt=description_prompt,
             layout_dependent_prompt=layout_dependent_prompt,
-            retries=retries,
         )
 
         return await PDFParser.from_bytes(
             pdf_content=pdf_content,
             vision_service=vision_service,
-            image_retries=retries,
         )
