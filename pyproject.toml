@@ -17,6 +17,7 @@ openai = [
 ]
 anthropic = [
     "anthropic>=0.51.0",
+    "json-repair>=0.44.1",
 ]
 
 [dependency-groups]
