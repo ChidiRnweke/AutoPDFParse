@@ -66,6 +66,7 @@ name = "autopdfparse"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "pydantic" },
     { name = "pymupdf" },
 ]
 
@@ -92,6 +93,7 @@ requires-dist = [
     { name = "google-genai", marker = "extra == 'gemini'", specifier = ">=1.15.0" },
     { name = "json-repair", marker = "extra == 'anthropic'", specifier = ">=0.44.1" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.79.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pymupdf", specifier = ">=1.25.5" },
 ]
 provides-extras = ["gemini", "openai", "anthropic"]

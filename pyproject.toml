@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pymupdf>=1.25.5",
+    "pydantic>=2.0.0",
 ]
 
 [project.optional-dependencies]
