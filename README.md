@@ -8,7 +8,9 @@ A Python package for parsing PDF documents using AI vision models. This package 
 - Visual parsing for complex documents with tables, charts, etc.
 - Fallback to raw text extraction when appropriate
 - Support for multiple AI providers (OpenAI, Anthropic Claude, Google Gemini)
-- Retry logic for API calls
+- Easy extension with custom providers (just implement 2 functions!)
+- Customizable system prompts for fine-tuning AI responses
+- Built-in rate limiting for API requests
 - Error handling and custom exceptions
 - Async API for better performance
 
@@ -76,9 +78,6 @@ async def use_gemini():
     
     result = await parser.parse()
     print(result.get_all_content())
-
-if __name__ == "__main__":
-    asyncio.run(use_gemini())
 ```
 
 ### Using Anthropic Claude
@@ -95,9 +94,20 @@ async def use_claude():
     
     result = await parser.parse()
     print(result.get_all_content())
+```
 
-if __name__ == "__main__":
-    asyncio.run(use_claude())
+### Configuring Rate Limits
+
+You can configure the maximum number of concurrent API requests to avoid rate limiting issues:
+
+```python
+from autopdfparse import Config
+
+# Set the maximum number of concurrent API requests
+Config.MAX_CONCURRENT_REQUESTS = 10  # Default is 25
+
+# Then proceed with parsing
+parser = await OpenAIParser.from_file(...)
 ```
 
 ### Accessing Individual Pages
@@ -122,7 +132,6 @@ openai_parser = await OpenAIParser.from_file(
     api_key="your_openai_api_key",
     description_model="gpt-4.1",     # Model for content description
     visual_model="gpt-4.1-mini",     # Model for layout detection
-    retries=5                        # Set custom retry count
 )
 
 # For Gemini
@@ -130,8 +139,7 @@ gemini_parser = await GeminiParser.from_file(
     file_path="path/to/document.pdf",
     api_key="your_google_api_key",
     description_model="gemini-1.5-pro",
-    visual_model="gemini-1.5-flash",
-    retries=3
+    visual_model="gemini-1.5-flash"
 )
 
 # For Anthropic
@@ -139,8 +147,7 @@ anthropic_parser = await AnthropicParser.from_file(
     file_path="path/to/document.pdf",
     api_key="your_anthropic_api_key",
     description_model="claude-3-opus-20240229",
-    visual_model="claude-3-haiku-20240307",
-    retries=3
+    visual_model="claude-3-haiku-20240307"
 )
 ```
 
@@ -166,6 +173,87 @@ async def handle_errors():
         print(f"Unexpected error: {e}")
 ```
 
+### Custom Providers and Prompts
+
+#### Customizing Prompts
+
+All providers use default system prompts for content detection and layout analysis. You can customize these prompts when instantiating a parser:
+
+```python
+from autopdfparse import OpenAIParser
+from autopdfparse.default_prompts import describe_image_system_prompt
+
+# Create a modified prompt
+my_custom_prompt = describe_image_system_prompt + "\nAdditional instructions: Focus on extracting tabular data with precision."
+
+parser = await OpenAIParser.from_file(
+    file_path="path/to/document.pdf",
+    api_key="your_openai_api_key",
+    description_prompt=my_custom_prompt  # Custom prompt for content description
+)
+```
+
+#### Implementing a Custom Provider
+
+You can create your own provider by implementing the `VisionService` protocol and using it with the `PDFParser` class:
+
+```python
+from autopdfparse.services import VisionService, PDFParser
+
+class CustomVisionService(VisionService):
+    """A simple custom vision service example."""
+    
+    async def describe_image_content(self, image: str) -> str:
+        """
+        Custom implementation of image content description.
+        
+        Args:
+            image: Base64 encoded image
+            
+        Returns:
+            Description of the image content
+        """
+        # Your custom logic here - this example just returns a placeholder
+        return "Hello world! This is a custom image description."
+    
+    async def is_layout_dependent(self, image: str) -> bool:
+        """
+        Custom implementation for detecting layout-dependent content.
+        
+        Args:
+            image: Base64 encoded image
+            
+        Returns:
+            True if layout-dependent, False otherwise
+        """
+        # Your custom logic here - this example always returns False
+        return False
+
+class CustomParser:
+    @classmethod
+    async def from_file(cls, file_path: str, **kwargs) -> PDFParser:
+        """Create a parser from a file path."""
+        # Create your custom vision service
+        vision_service = CustomVisionService()
+        
+        # Use the standard PDFParser with your custom vision service
+        return await PDFParser.create(file_path=file_path, vision_service=vision_service)
+    
+    @classmethod
+    async def from_bytes(cls, pdf_content: bytes, **kwargs) -> PDFParser:
+        """Create a parser from bytes."""
+        vision_service = CustomVisionService()
+        return await PDFParser.from_bytes(pdf_content=pdf_content, vision_service=vision_service)
+
+# Usage
+async def main():
+    parser = await CustomParser.from_file("path/to/document.pdf")
+    result = await parser.parse()
+    print(result.get_all_content())
+```
+
+You can implement more sophisticated integrations with other AI providers or your own models by following this pattern.
+
 ## Requirements
 
 - Python 3.12+
@@ -173,4 +261,4 @@ async def handle_errors():
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request. We especially welcome contributions for new providers, new default prompts, etc.
