@@ -8,6 +8,10 @@ from typing import ClassVar, Optional
 
 from openai import AsyncOpenAI
 
+from autopdfparse.default_prompts import (
+    describe_image_system_prompt,
+    layout_dependent_system_prompt,
+)
 from autopdfparse.exceptions import APIError
 from autopdfparse.models import VisualModelDecision
 from autopdfparse.services import VisionService
@@ -26,7 +30,9 @@ class OpenAIVisionService(VisionService):
     visual_model: str
     retries: int = 3
 
-    # Default models to use
+    describe_image_prompt: Optional[str] = describe_image_system_prompt
+    layout_dependent_prompt: Optional[str] = layout_dependent_system_prompt
+
     DEFAULT_DESCRIPTION_MODEL: ClassVar[str] = "gpt-4.1"
     DEFAULT_VISUAL_MODEL: ClassVar[str] = "gpt-4.1-mini"
 
@@ -75,31 +81,11 @@ class OpenAIVisionService(VisionService):
             try:
                 openai = AsyncOpenAI(api_key=self.api_key)
 
-                system_prompt = """
-                You are a helpful assistant that extracts and describes the content of PDF pages.
-                Focus on extracting all the text content in a structured manner, preserving the exact text as written.
-                Preserve the logical flow and hierarchy of information.
-                
-                For diagrams, charts, or visual elements:
-                - Provide detailed descriptions of what they depict
-                - Explain their purpose and relationship to the surrounding text
-                - Include any labels, legends, or annotations visible in the diagram
-                
-                For document structure:
-                - Maintain section headings and subheadings hierarchy
-                - Preserve comparative elements (e.g., "versus", "compared to", "in contrast")
-                - Clearly indicate when content is organized in columns, lists, or other structural formats
-                
-                If tables are present, reproduce them in a structured text format.
-                Ensure the page content can be understood as a standalone document without referring to other pages.
-                Ignore watermarks and page numbers.
-                """
-
                 response = await openai.responses.create(
                     input=[
                         {
                             "role": "system",
-                            "content": system_prompt,
+                            "content": self.describe_image_prompt,
                         },
                         {
                             "role": "user",
@@ -146,22 +132,11 @@ class OpenAIVisionService(VisionService):
             try:
                 openai = AsyncOpenAI(api_key=self.api_key)
 
-                system_prompt = """
-                You need to determine if this PDF page has content that is layout-dependent.
-                Layout-dependent content includes:
-                - Tables, charts, or graphs
-                - Complex formatting that affects meaning
-                - Diagrams or flowcharts
-                - Content arranged in columns that can't be linearly read
-                - Math equations
-                Return true if the content is layout dependent, false if it's just plain text that can be read linearly.
-                """
-
                 response = await openai.responses.parse(
                     input=[
                         {
                             "role": "system",
-                            "content": system_prompt,
+                            "content": self.layout_dependent_prompt,
                         },
                         {
                             "role": "user",
