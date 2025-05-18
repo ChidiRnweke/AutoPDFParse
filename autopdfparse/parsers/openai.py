@@ -30,10 +30,9 @@ class OpenAIVisionService(VisionService):
     api_key: str
     description_model: str
     visual_model: str
+    describe_image_prompt: str
+    layout_dependent_prompt: str
     retries: int = 3
-
-    describe_image_prompt: Optional[str] = describe_image_system_prompt
-    layout_dependent_prompt: Optional[str] = layout_dependent_system_prompt
 
     DEFAULT_DESCRIPTION_MODEL: ClassVar[str] = "gpt-4.1"
     DEFAULT_VISUAL_MODEL: ClassVar[str] = "gpt-4.1-mini"
@@ -45,6 +44,8 @@ class OpenAIVisionService(VisionService):
         description_model: Optional[str] = None,
         visual_model: Optional[str] = None,
         retries: int = 3,
+        describe_image_prompt: str = describe_image_system_prompt,
+        layout_dependent_prompt: str = layout_dependent_system_prompt,
     ) -> "OpenAIVisionService":
         """
         Create an OpenAIVisionService instance.
@@ -71,6 +72,8 @@ class OpenAIVisionService(VisionService):
             description_model=description_model or cls.DEFAULT_DESCRIPTION_MODEL,
             visual_model=visual_model or cls.DEFAULT_VISUAL_MODEL,
             retries=retries,
+            describe_image_prompt=describe_image_prompt,
+            layout_dependent_prompt=layout_dependent_prompt,
         )
 
     async def describe_image_content(self, image: str) -> str:
