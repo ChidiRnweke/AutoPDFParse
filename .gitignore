@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Used during local development
+test.pdf
+test.ipynb

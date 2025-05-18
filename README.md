@@ -1,6 +1,14 @@
 # AutoPDFParse
 
-A Python package for parsing PDF documents using AI vision models. This package automatically detects when a PDF contains layout-dependent content (tables, charts, complex formatting) and uses AI vision models to extract the content accurately.
+RAG (Retrieval-Augmented Generation) is a powerful technique that combines the strengths of large language models (LLMs) with external knowledge sources to improve the quality and relevance of generated content. One key challenge in RAG is effectively parsing and understanding complex documents, such as PDFs, which often contain a mix of text, images, tables, and other layout-dependent content. This is where AutoPDFParse comes in.
+
+AutoPDFParse is a Python package designed to simplify the process of parsing PDF documents using multimodal LLMs. It leverages the capabilities of advanced AI models to automatically detect layout-dependent content and extract relevant information, making it easier to work with complex documents.
+
+It works in a two step process:
+1. **Visual Parsing**: Each page of the PDF is converted to an image and sent to a vision model (like OpenAI's GPT-4 Vision) to determine if the content is layout-dependent.
+2. **Content Description**: If the content is layout-dependent, the image is sent to a description model (like OpenAI's GPT-4) to extract the text and other relevant information. If not, the raw text is extracted directly from the PDF.
+
+This package is designed to work with multiple AI providers, including OpenAI, Google Gemini, and Anthropic Claude. It provides a simple and extensible interface for parsing PDF documents, making it easy to integrate into your projects.
 
 ## Features
 
@@ -253,6 +261,72 @@ async def main():
 ```
 
 You can implement more sophisticated integrations with other AI providers or your own models by following this pattern.
+
+### Synchronous API
+
+In addition to the asynchronous API, AutoPDFParse also provides a synchronous API for environments where async/await cannot be used. The synchronous API mirrors the async API but uses blocking calls.
+
+```python
+from autopdfparse.sync import OpenAIParser
+
+# Create a parser
+parser = OpenAIParser.from_file(
+    file_path="path/to/document.pdf",
+    api_key="your_openai_api_key"
+)
+
+# Parse the document (no await needed)
+result = parser.parse()
+
+# Access the content
+content = result.get_all_content()
+print(content)
+```
+
+The synchronous API supports all the same features as the asynchronous API:
+
+```python
+from autopdfparse.sync import GeminiParser, AnthropicParser
+
+# Using Google Gemini
+gemini_parser = GeminiParser.from_file(
+    file_path="path/to/document.pdf",
+    api_key="your_google_api_key",
+    description_model="gemini-1.5-pro"
+)
+gemini_result = gemini_parser.parse()
+
+# Using Anthropic Claude
+anthropic_parser = AnthropicParser.from_file(
+    file_path="path/to/document.pdf",
+    api_key="your_anthropic_api_key"
+)
+anthropic_result = anthropic_parser.parse()
+```
+
+Creating a custom provider with the synchronous API:
+
+```python
+from autopdfparse.sync.services import VisionService, PDFParser
+
+class CustomVisionService(VisionService):
+    """A simple synchronous custom vision service."""
+    
+    def describe_image_content(self, image: str) -> str:
+        # Synchronous implementation
+        return "Image description here"
+    
+    def is_layout_dependent(self, image: str) -> bool:
+        # Synchronous implementation
+        return False
+
+# Use with PDFParser
+parser = PDFParser.create(
+    file_path="path/to/document.pdf",
+    vision_service=CustomVisionService()
+)
+result = parser.parse()
+```
 
 ## Requirements
 
