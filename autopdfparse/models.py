@@ -3,7 +3,7 @@ Data models for the AutoPDFParse package.
 """
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import List
 
 from pydantic import BaseModel
 
@@ -33,7 +33,7 @@ class ParsedPDFResult:
         pages: List of parsed PDF pages
     """
 
-    pages: list[PDFPage]
+    pages: List[PDFPage]
 
     def get_all_content(self) -> str:
         """Returns all page content concatenated into a single string."""
@@ -52,12 +52,6 @@ class ParsedData:
 
     content: str
     _from_llm: bool
-
-
-class PDFParser(Protocol):
-    """Protocol defining the interface for PDF parsers."""
-
-    async def parse(self) -> ParsedPDFResult: ...
 
 
 class VisualModelDecision(BaseModel):
