@@ -3,20 +3,22 @@ OpenAI-based PDF parser implementation.
 """
 
 import asyncio
+import importlib.util
 from dataclasses import dataclass
 from typing import ClassVar, Optional
-
-from openai import AsyncOpenAI
 
 from autopdfparse.default_prompts import (
     describe_image_system_prompt,
     layout_dependent_system_prompt,
 )
-from autopdfparse.exceptions import APIError
+from autopdfparse.exceptions import APIError, ModelError
 from autopdfparse.models import VisualModelDecision
 from autopdfparse.services import VisionService
 
 from ..services.parser import PDFParser
+
+# Check if OpenAI package is installed
+OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
 
 
 @dataclass
@@ -55,7 +57,15 @@ class OpenAIVisionService(VisionService):
 
         Returns:
             OpenAIVisionService instance
+
+        Raises:
+            ModelError: If OpenAI package is not installed
         """
+        if not OPENAI_AVAILABLE:
+            raise ModelError(
+                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+            )
+
         return cls(
             api_key=api_key,
             description_model=description_model or cls.DEFAULT_DESCRIPTION_MODEL,
@@ -75,7 +85,15 @@ class OpenAIVisionService(VisionService):
 
         Raises:
             APIError: If the API call fails after retries
+            ModelError: If OpenAI package is not installed
         """
+        if not OPENAI_AVAILABLE:
+            raise ModelError(
+                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+            )
+
+        from openai import AsyncOpenAI
+
         last_error = None
         for attempt in range(self.retries):
             try:
@@ -127,7 +145,15 @@ class OpenAIVisionService(VisionService):
 
         Raises:
             APIError: If the API call fails after retries
+            ModelError: If OpenAI package is not installed
         """
+        if not OPENAI_AVAILABLE:
+            raise ModelError(
+                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+            )
+
+        from openai import AsyncOpenAI
+
         for attempt in range(self.retries):
             try:
                 openai = AsyncOpenAI(api_key=self.api_key)
@@ -196,7 +222,15 @@ class OpenAIParser:
 
         Returns:
             BasePDFParser instance configured with OpenAIVisionService
+
+        Raises:
+            ModelError: If OpenAI package is not installed
         """
+        if not OPENAI_AVAILABLE:
+            raise ModelError(
+                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+            )
+
         vision_service = OpenAIVisionService.create(
             api_key=api_key,
             description_model=description_model,
@@ -229,7 +263,15 @@ class OpenAIParser:
 
         Returns:
             BasePDFParser instance configured with OpenAIVisionService
+
+        Raises:
+            ModelError: If OpenAI package is not installed
         """
+        if not OPENAI_AVAILABLE:
+            raise ModelError(
+                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+            )
+
         vision_service = OpenAIVisionService.create(
             api_key=api_key,
             description_model=description_model,

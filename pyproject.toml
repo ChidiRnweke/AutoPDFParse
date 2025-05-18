@@ -1,10 +1,25 @@
 [project]
 name = "autopdfparse"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Python package for parsing PDF documents using AI vision models"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "openai>=1.79.0",
     "pymupdf>=1.25.5",
+]
+
+[project.optional-dependencies]
+gemini = [
+    "google-genai>=1.15.0",
+]
+openai = [
+    "openai>=1.79.0",
+]
+anthropic = [
+    "anthropic>=0.51.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
 ]
