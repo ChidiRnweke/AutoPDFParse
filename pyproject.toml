@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "pymupdf>=1.25.5",
     "pydantic>=2.0.0",
+    "pillow>=11.2.1",
 ]
 
 [project.optional-dependencies]
@@ -24,4 +25,9 @@ anthropic = [
 [dependency-groups]
 dev = [
     "ipykernel>=6.29.5",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.26.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
