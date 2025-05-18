@@ -13,6 +13,7 @@ from .exceptions import (
 from .models import ParsedData, ParsedPDFResult, PDFPage, VisualModelDecision
 from .providers import AnthropicParser, GeminiParser, OpenAIParser
 from .services import PDFParser, VisionService
+from .sync import services
 
 __version__ = "0.1.0"
 
@@ -37,4 +38,6 @@ __all__ = [
     "GeminiParser",
     # Services
     "VisionService",
+    # Sync API
+    "services",
 ]
