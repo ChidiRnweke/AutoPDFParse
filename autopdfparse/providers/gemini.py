@@ -134,7 +134,7 @@ class GeminiVisionService(VisionService):
         """
         if not GEMINI_AVAILABLE:
             raise ModelError(
-                "Google GenerativeAI package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
+                "Google-genai package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
             )
 
         try:
@@ -199,7 +199,7 @@ class GeminiParser:
         """
         if not GEMINI_AVAILABLE:
             raise ModelError(
-                "Google GenerativeAI package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
+                "google-genai package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
             )
 
         vision_service = GeminiVisionService.create(
