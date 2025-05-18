@@ -1,12 +1,13 @@
 # AutoPDFParse
 
-A Python package for parsing PDF documents using OpenAI vision models. This package automatically detects when a PDF contains layout-dependent content (tables, charts, complex formatting) and uses AI vision models to extract the content accurately.
+A Python package for parsing PDF documents using AI vision models. This package automatically detects when a PDF contains layout-dependent content (tables, charts, complex formatting) and uses AI vision models to extract the content accurately.
 
 ## Features
 
 - Automatic detection of layout-dependent content
 - Visual parsing for complex documents with tables, charts, etc.
 - Fallback to raw text extraction when appropriate
+- Support for multiple AI providers (OpenAI, Anthropic Claude, Google Gemini)
 - Retry logic for API calls
 - Error handling and custom exceptions
 - Async API for better performance
@@ -19,16 +20,13 @@ Basic installation:
 pip install autopdfparse
 ```
 
-With OpenAI support:
+With specific AI provider support:
 
 ```bash
+# OpenAI
 pip install "autopdfparse[openai]"
-```
 
-With other AI providers:
-
-```bash
-# Google Gemini 
+# Google Gemini
 pip install "autopdfparse[gemini]"
 
 # Anthropic Claude
@@ -40,7 +38,7 @@ pip install "autopdfparse[openai,gemini,anthropic]"
 
 ## Usage
 
-### Basic Example
+### Basic Example with OpenAI
 
 ```python
 import asyncio
@@ -64,15 +62,48 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+### Using Google Gemini
+
+```python
+import asyncio
+from autopdfparse import GeminiParser
+
+async def use_gemini():
+    parser = await GeminiParser.from_file(
+        file_path="path/to/document.pdf",
+        api_key="your_google_api_key"
+    )
+    
+    result = await parser.parse()
+    print(result.get_all_content())
+
+if __name__ == "__main__":
+    asyncio.run(use_gemini())
+```
+
+### Using Anthropic Claude
+
+```python
+import asyncio
+from autopdfparse import AnthropicParser
+
+async def use_claude():
+    parser = await AnthropicParser.from_file(
+        file_path="path/to/document.pdf",
+        api_key="your_anthropic_api_key"
+    )
+    
+    result = await parser.parse()
+    print(result.get_all_content())
+
+if __name__ == "__main__":
+    asyncio.run(use_claude())
+```
+
 ### Accessing Individual Pages
 
 ```python
-async def process_pages():
-    parser = await OpenAIParser.from_file(
-        file_path="path/to/document.pdf",
-        api_key="your_openai_api_key"
-    )
-    
+async def process_pages(parser):
     result = await parser.parse()
     
     # Access individual pages
@@ -85,12 +116,31 @@ async def process_pages():
 ### Custom Model Selection
 
 ```python
-parser = await OpenAIParser.from_file(
+# For OpenAI
+openai_parser = await OpenAIParser.from_file(
     file_path="path/to/document.pdf",
     api_key="your_openai_api_key",
-    description_model="gpt-4.1",  # Use a specific model for content description
-    visual_model="gpt-4.1-mini",  # Use a specific model for layout detection
-    retries=5                      # Set custom retry count
+    description_model="gpt-4.1",     # Model for content description
+    visual_model="gpt-4.1-mini",     # Model for layout detection
+    retries=5                        # Set custom retry count
+)
+
+# For Gemini
+gemini_parser = await GeminiParser.from_file(
+    file_path="path/to/document.pdf",
+    api_key="your_google_api_key",
+    description_model="gemini-1.5-pro",
+    visual_model="gemini-1.5-flash",
+    retries=3
+)
+
+# For Anthropic
+anthropic_parser = await AnthropicParser.from_file(
+    file_path="path/to/document.pdf",
+    api_key="your_anthropic_api_key",
+    description_model="claude-3-opus-20240229",
+    visual_model="claude-3-haiku-20240307",
+    retries=3
 )
 ```
 
@@ -119,6 +169,7 @@ async def handle_errors():
 ## Requirements
 
 - Python 3.12+
+- API key for your chosen provider (OpenAI, Google, or Anthropic)
 
 ## Contributing
 
