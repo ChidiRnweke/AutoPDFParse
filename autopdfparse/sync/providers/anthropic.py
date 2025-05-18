@@ -1,5 +1,5 @@
 """
-Synchronous OpenAI-based PDF parser implementation.
+Synchronous Anthropic Claude-based PDF parser implementation.
 """
 
 import importlib.util
@@ -13,13 +13,13 @@ from autopdfparse.exceptions import APIError, ModelError
 from autopdfparse.models import VisualModelDecision
 from autopdfparse.sync.services import PDFParser, VisionService
 
-OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
+ANTHROPIC_AVAILABLE = importlib.util.find_spec("anthropic") is not None
 
 
 @dataclass
-class OpenAIVisionService(VisionService):
+class AnthropicVisionService(VisionService):
     """
-    Synchronous implementation of VisionService using OpenAI's vision capabilities.
+    Synchronous implementation of VisionService using Anthropic's Claude vision capabilities.
     """
 
     api_key: str
@@ -32,28 +32,28 @@ class OpenAIVisionService(VisionService):
     def create(
         cls,
         api_key: str,
-        description_model: str = "gpt-4.1",
-        visual_model: str = "gpt-4.1-mini",
+        description_model: str = "claude-3-opus-20240229",
+        visual_model: str = "claude-3-haiku-20240307",
         describe_image_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
-    ) -> "OpenAIVisionService":
+    ) -> "AnthropicVisionService":
         """
-        Create an OpenAIVisionService instance.
+        Create an AnthropicVisionService instance.
 
         Args:
-            api_key: OpenAI API key
+            api_key: Anthropic API key
             description_model: Model to use for describing content
             visual_model: Model to use for layout dependency detection
 
         Returns:
-            OpenAIVisionService instance
+            AnthropicVisionService instance
 
         Raises:
-            ModelError: If OpenAI package is not installed
+            ModelError: If Anthropic package is not installed
         """
-        if not OPENAI_AVAILABLE:
+        if not ANTHROPIC_AVAILABLE:
             raise ModelError(
-                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+                "Anthropic package is not installed. Install it with 'pip install \"autopdfparse[anthropic]\"'"
             )
 
         return cls(
@@ -66,7 +66,7 @@ class OpenAIVisionService(VisionService):
 
     def describe_image_content(self, image: str) -> str:
         """
-        Describe the content of an image using OpenAI's vision model.
+        Describe the content of an image using Anthropic's Claude vision model.
 
         Args:
             image: Image to describe
@@ -76,46 +76,49 @@ class OpenAIVisionService(VisionService):
 
         Raises:
             APIError: If the API call fails
-            ModelError: If OpenAI package is not installed
+            ModelError: If Anthropic package is not installed
         """
-        if not OPENAI_AVAILABLE:
+        if not ANTHROPIC_AVAILABLE:
             raise ModelError(
-                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+                "Anthropic package is not installed. Install it with 'pip install \"autopdfparse[anthropic]\"'"
             )
 
         try:
-            from openai import OpenAI
+            import anthropic
 
-            openai = OpenAI(api_key=self.api_key)
-            response = openai.responses.create(
-                input=[
-                    {
-                        "role": "system",
-                        "content": self.describe_image_prompt,
-                    },
+            client = anthropic.Anthropic(api_key=self.api_key)
+
+            message = client.messages.create(
+                model=self.description_model,
+                max_tokens=4000,
+                system=self.describe_image_prompt,
+                messages=[
                     {
                         "role": "user",
                         "content": [
                             {
-                                "type": "input_text",
+                                "type": "text",
                                 "text": "Extract and structure all the content from this image.",
                             },
                             {
-                                "type": "input_image",
-                                "image_url": f"data:image/png;base64,{image}",
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/png",
+                                    "data": image,
+                                },
                             },
                         ],
-                    },  # type: ignore
+                    }
                 ],
-                model=self.description_model,
             )
-            return response.output_text
+            return message.content[0].text  # type: ignore
         except Exception as e:
             raise APIError(f"Failed to describe image: {str(e)}")
 
     def is_layout_dependent(self, image: str) -> bool:
         """
-        Determine if the content in an image is layout-dependent using OpenAI's vision model.
+        Determine if the content in an image is layout-dependent using Claude's vision model.
 
         Args:
             image: Image to analyze
@@ -125,57 +128,61 @@ class OpenAIVisionService(VisionService):
 
         Raises:
             APIError: If the API call fails
-            ModelError: If OpenAI package is not installed
+            ModelError: If Anthropic package is not installed
         """
-        if not OPENAI_AVAILABLE:
+        if not ANTHROPIC_AVAILABLE:
             raise ModelError(
-                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+                "Anthropic package is not installed. Install it with 'pip install \"autopdfparse[anthropic]\"'"
             )
 
-        from openai import OpenAI
-
         try:
-            openai = OpenAI(api_key=self.api_key)
-            response = openai.responses.parse(
-                input=[
-                    {
-                        "role": "system",
-                        "content": self.layout_dependent_prompt,
-                    },
+            import anthropic
+            import json_repair
+
+            client = anthropic.Anthropic(api_key=self.api_key)
+            message = client.messages.create(
+                model=self.visual_model,
+                max_tokens=100,
+                system=f"{self.layout_dependent_prompt}",
+                messages=[
                     {
                         "role": "user",
                         "content": [
                             {
-                                "type": "input_text",
-                                "text": "Is the content layout dependent? Respond with true or false.",
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/png",
+                                    "data": image,
+                                },
                             },
                             {
-                                "type": "input_image",
-                                "image_url": f"data:image/png;base64,{image}",
+                                "type": "text",
+                                "text": "Is the content layout dependent? Respond with a JSON object containing a boolean field 'content_is_layout_dependent'. Example: {\"content_is_layout_dependent\": true}",
                             },
                         ],
-                    },  # type: ignore
+                    },
+                    {
+                        "role": "assistant",
+                        "content": '{"content_is_layout_dependent": ',
+                    },
                 ],
-                model=self.visual_model,
-                text_format=VisualModelDecision,
             )
 
-            return (
-                response.output_parsed.content_is_layout_dependent
-                if response.output_parsed
-                else False
-            )
+            text_content = message.content[0].text  # type: ignore
+            result = VisualModelDecision(**json_repair.loads((text_content)))  # type: ignore
+            return result.content_is_layout_dependent
         except Exception:
             # Default to True on failure to ensure we don't miss layout-dependent content
             return True
 
 
-class OpenAIParser:
+class AnthropicParser:
     """
-    Factory class for creating synchronous PDF parsers that use OpenAI's vision models.
+    Factory class for creating PDF parsers that use Anthropic's Claude vision models.
 
     This class provides convenience methods for creating PDFParser instances
-    that are configured to use OpenAI's vision services.
+    that are configured to use Anthropic's vision services.
     """
 
     @classmethod
@@ -183,32 +190,32 @@ class OpenAIParser:
         cls,
         file_path: str,
         api_key: str,
-        description_model: str = "gpt-4.1",
-        visual_model: str = "gpt-4.1-mini",
+        description_model: str = "claude-3-opus-20240229",
+        visual_model: str = "claude-3-haiku-20240307",
         description_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
     ) -> PDFParser:
         """
-        Create a synchronous PDF parser from a file path using OpenAI vision services.
+        Create a PDF parser from a file path using Claude vision services.
 
         Args:
             file_path: Path to the PDF file
-            api_key: OpenAI API key
+            api_key: Anthropic API key
             description_model: Model to use for describing content
             visual_model: Model to use for layout dependency detection
 
         Returns:
-            PDFParser instance configured with OpenAIVisionService
+            PDFParser instance configured with AnthropicVisionService
 
         Raises:
-            ModelError: If OpenAI package is not installed
+            ModelError: If Anthropic package is not installed
         """
-        if not OPENAI_AVAILABLE:
+        if not ANTHROPIC_AVAILABLE:
             raise ModelError(
-                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+                "Anthropic package is not installed. Install it with 'pip install \"autopdfparse[anthropic]\"'"
             )
 
-        vision_service = OpenAIVisionService.create(
+        vision_service = AnthropicVisionService.create(
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
@@ -223,32 +230,32 @@ class OpenAIParser:
         cls,
         pdf_content: bytes,
         api_key: str,
-        description_model: str = "gpt-4.1",
-        visual_model: str = "gpt-4.1-mini",
+        description_model: str = "claude-3-opus-20240229",
+        visual_model: str = "claude-3-haiku-20240307",
         description_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
     ) -> PDFParser:
         """
-        Create a synchronous PDF parser from bytes using OpenAI vision services.
+        Create a PDF parser from bytes using Claude vision services.
 
         Args:
             pdf_content: PDF content as bytes
-            api_key: OpenAI API key
+            api_key: Anthropic API key
             description_model: Model to use for describing content
             visual_model: Model to use for layout dependency detection
 
         Returns:
-            PDFParser instance configured with OpenAIVisionService
+            PDFParser instance configured with AnthropicVisionService
 
         Raises:
-            ModelError: If OpenAI package is not installed
+            ModelError: If Anthropic package is not installed
         """
-        if not OPENAI_AVAILABLE:
+        if not ANTHROPIC_AVAILABLE:
             raise ModelError(
-                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
+                "Anthropic package is not installed. Install it with 'pip install \"autopdfparse[anthropic]\"'"
             )
 
-        vision_service = OpenAIVisionService.create(
+        vision_service = AnthropicVisionService.create(
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
