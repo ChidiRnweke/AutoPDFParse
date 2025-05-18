@@ -3,6 +3,7 @@ Base parser implementations.
 """
 
 import asyncio
+import base64
 import logging
 from dataclasses import dataclass
 from typing import List
@@ -27,7 +28,7 @@ class PDFParser:
     vision_service: VisionService
 
     @classmethod
-    async def create(cls, file_path: str, vision_service: VisionService) -> "PDFParser":
+    def create(cls, file_path: str, vision_service: VisionService) -> "PDFParser":
         """
         Factory method to create a parser from a file path.
 
@@ -56,7 +57,7 @@ class PDFParser:
             raise PDFParsingError(f"Error reading PDF file: {str(e)}")
 
     @classmethod
-    async def from_bytes(
+    def from_bytes(
         cls, pdf_content: bytes, vision_service: VisionService
     ) -> "PDFParser":
         """
@@ -70,10 +71,7 @@ class PDFParser:
         Returns:
             A PDFParser instance
         """
-        return cls(
-            pdf_content=pdf_content,
-            vision_service=vision_service
-        )
+        return cls(pdf_content=pdf_content, vision_service=vision_service)
 
     async def parse(self) -> ParsedPDFResult:
         """
@@ -116,7 +114,8 @@ class PDFParser:
     ) -> ParsedData:
         try:
             # Convert image to base64 string
-            image_base64 = page_as_image.tobytes("png").decode("utf-8")
+            image_bytes = page_as_image.pil_tobytes("png")
+            image_base64 = base64.b64encode(image_bytes).decode("utf-8")
 
             is_layout_dependent = await self.vision_service.is_layout_dependent(
                 image_base64
@@ -130,7 +129,4 @@ class PDFParser:
             return ParsedData(content=content, _from_llm=from_llm)
         except Exception as e:
             logging.error(f"Error parsing page {page_num}: {str(e)}")
-            return ParsedData(
-                content=f"Error processing page {page_num}. Fallback content: {page_text[:500]}...",
-                _from_llm=False,
-            )
+            raise PDFParsingError(f"Error processing page {page_num}. ")

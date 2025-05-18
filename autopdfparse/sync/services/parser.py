@@ -124,7 +124,4 @@ class PDFParser:
             return ParsedData(content=content, _from_llm=from_llm)
         except Exception as e:
             logging.error(f"Error parsing page {page_num}: {str(e)}")
-            return ParsedData(
-                content=f"Error processing page {page_num}. Fallback content: {page_text[:500]}...",
-                _from_llm=False,
-            )
+            raise PDFParsingError(f"Error processing page {page_num}. : {str(e)}")

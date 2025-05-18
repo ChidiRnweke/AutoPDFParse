@@ -175,7 +175,7 @@ class GeminiParser:
     """
 
     @classmethod
-    async def from_file(
+    def from_file(
         cls,
         file_path: str,
         api_key: str,
@@ -208,12 +208,10 @@ class GeminiParser:
             visual_model=visual_model,
         )
 
-        return await PDFParser.create(
-            file_path=file_path, vision_service=vision_service
-        )
+        return PDFParser.create(file_path=file_path, vision_service=vision_service)
 
     @classmethod
-    async def from_bytes(
+    def from_bytes(
         cls,
         pdf_content: bytes,
         api_key: str,
@@ -247,7 +245,7 @@ class GeminiParser:
             visual_model=visual_model,
         )
 
-        return await PDFParser.from_bytes(
+        return PDFParser.from_bytes(
             pdf_content=pdf_content,
             vision_service=vision_service,
         )
