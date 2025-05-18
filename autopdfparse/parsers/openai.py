@@ -69,8 +69,8 @@ class OpenAIVisionService(VisionService):
 
         return cls(
             api_key=api_key,
-            description_model=description_model or cls.DEFAULT_DESCRIPTION_MODEL,
-            visual_model=visual_model or cls.DEFAULT_VISUAL_MODEL,
+            description_model=describe_image_prompt,
+            visual_model=layout_dependent_system_prompt,
             retries=retries,
             describe_image_prompt=describe_image_prompt,
             layout_dependent_prompt=layout_dependent_prompt,
