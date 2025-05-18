@@ -11,7 +11,7 @@ import pymupdf
 
 from ..exceptions import PDFParsingError
 from ..models import ParsedData, ParsedPDFResult, PDFPage
-from ..services.vision import VisionService
+from .vision import VisionService
 
 
 @dataclass

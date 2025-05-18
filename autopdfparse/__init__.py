@@ -10,8 +10,8 @@ from .exceptions import (
     PDFParsingError,
 )
 from .models import ParsedData, ParsedPDFResult, PDFPage, VisualModelDecision
-from .parsers import OpenAIParser, PDFParser
-from .services import OpenAIVisionService, VisionService
+from .parsers import OpenAIParser
+from .services import PDFParser, VisionService
 
 __version__ = "0.1.0"
 
@@ -32,5 +32,4 @@ __all__ = [
     "OpenAIParser",
     # Services
     "VisionService",
-    "OpenAIVisionService",
 ]
