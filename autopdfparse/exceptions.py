@@ -1,5 +1,5 @@
 """
-Exceptions for AutoPDFParse package.
+Exceptions for the AutoPDFParse package.
 """
 
 
