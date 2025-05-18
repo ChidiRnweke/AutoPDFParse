@@ -11,7 +11,7 @@ from .exceptions import (
     PDFParsingError,
 )
 from .models import ParsedData, ParsedPDFResult, PDFPage, VisualModelDecision
-from .parsers import AnthropicParser, GeminiParser, OpenAIParser
+from .providers import AnthropicParser, GeminiParser, OpenAIParser
 from .services import PDFParser, VisionService
 
 __version__ = "0.1.0"
