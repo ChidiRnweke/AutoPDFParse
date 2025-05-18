@@ -5,7 +5,6 @@ OpenAI-based PDF parser implementation.
 import asyncio
 import importlib.util
 from dataclasses import dataclass
-from typing import ClassVar, Optional
 
 from autopdfparse.default_prompts import (
     describe_image_system_prompt,
@@ -17,7 +16,6 @@ from autopdfparse.services import VisionService
 
 from ..services.parser import PDFParser
 
-# Check if OpenAI package is installed
 OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
 
 
@@ -32,17 +30,16 @@ class OpenAIVisionService(VisionService):
     visual_model: str
     describe_image_prompt: str
     layout_dependent_prompt: str
+    description_model: str
+    visual_model: str
     retries: int = 3
-
-    DEFAULT_DESCRIPTION_MODEL: ClassVar[str] = "gpt-4.1"
-    DEFAULT_VISUAL_MODEL: ClassVar[str] = "gpt-4.1-mini"
 
     @classmethod
     def create(
         cls,
         api_key: str,
-        description_model: Optional[str] = None,
-        visual_model: Optional[str] = None,
+        description_model: str = "gpt-4.1",
+        visual_model: str = "gpt-4.1-mini",
         retries: int = 3,
         describe_image_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
@@ -69,8 +66,8 @@ class OpenAIVisionService(VisionService):
 
         return cls(
             api_key=api_key,
-            description_model=describe_image_prompt,
-            visual_model=layout_dependent_system_prompt,
+            description_model=description_model,
+            visual_model=visual_model,
             retries=retries,
             describe_image_prompt=describe_image_prompt,
             layout_dependent_prompt=layout_dependent_prompt,
@@ -113,7 +110,7 @@ class OpenAIVisionService(VisionService):
                             "content": [
                                 {
                                     "type": "input_text",
-                                    "text": "Extract and structure all the content from this PDF page.",
+                                    "text": "Extract and structure all the content from this image.",
                                 },
                                 {
                                     "type": "input_image",
@@ -209,8 +206,10 @@ class OpenAIParser:
         cls,
         file_path: str,
         api_key: str,
-        description_model: Optional[str] = None,
-        visual_model: Optional[str] = None,
+        description_model: str = "gpt-4.1",
+        visual_model: str = "gpt-4.1-mini",
+        description_prompt: str = describe_image_system_prompt,
+        layout_dependent_prompt: str = layout_dependent_system_prompt,
         retries: int = 3,
     ) -> PDFParser:
         """
@@ -238,6 +237,8 @@ class OpenAIParser:
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
+            describe_image_prompt=description_prompt,
+            layout_dependent_prompt=layout_dependent_prompt,
             retries=retries,
         )
 
@@ -250,8 +251,10 @@ class OpenAIParser:
         cls,
         pdf_content: bytes,
         api_key: str,
-        description_model: Optional[str] = None,
-        visual_model: Optional[str] = None,
+        description_model: str = "gpt-4.1",
+        visual_model: str = "gpt-4.1-mini",
+        description_prompt: str = describe_image_system_prompt,
+        layout_dependent_prompt: str = layout_dependent_system_prompt,
         retries: int = 3,
     ) -> PDFParser:
         """
@@ -279,6 +282,8 @@ class OpenAIParser:
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
+            describe_image_prompt=description_prompt,
+            layout_dependent_prompt=layout_dependent_prompt,
             retries=retries,
         )
 

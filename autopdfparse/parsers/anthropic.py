@@ -5,7 +5,6 @@ Anthropic Claude-based PDF parser implementation.
 import asyncio
 import importlib.util
 from dataclasses import dataclass
-from typing import ClassVar, Optional
 
 from autopdfparse.default_prompts import (
     describe_image_system_prompt,
@@ -37,15 +36,12 @@ class AnthropicVisionService(VisionService):
     layout_dependent_prompt: str
     retries: int = 3
 
-    DEFAULT_DESCRIPTION_MODEL: ClassVar[str] = "claude-3-opus-20240229"
-    DEFAULT_VISUAL_MODEL: ClassVar[str] = "claude-3-haiku-20240307"
-
     @classmethod
     def create(
         cls,
         api_key: str,
-        description_model: Optional[str] = None,
-        visual_model: Optional[str] = None,
+        description_model: str = "claude-3-opus-20240229",
+        visual_model: str = "claude-3-haiku-20240307",
         retries: int = 3,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
         describe_image_prompt: str = describe_image_system_prompt,
@@ -72,8 +68,8 @@ class AnthropicVisionService(VisionService):
 
         return cls(
             api_key=api_key,
-            description_model=description_model or cls.DEFAULT_DESCRIPTION_MODEL,
-            visual_model=visual_model or cls.DEFAULT_VISUAL_MODEL,
+            description_model=description_model,
+            visual_model=visual_model,
             retries=retries,
             layout_dependent_prompt=layout_dependent_prompt,
             describe_image_prompt=describe_image_prompt,
@@ -222,8 +218,8 @@ class AnthropicParser:
         cls,
         file_path: str,
         api_key: str,
-        description_model: Optional[str] = None,
-        visual_model: Optional[str] = None,
+        description_model: str = "claude-3-opus-20240229",
+        visual_model: str = "claude-3-haiku-20240307",
         retries: int = 3,
     ) -> PDFParser:
         """
@@ -263,8 +259,8 @@ class AnthropicParser:
         cls,
         pdf_content: bytes,
         api_key: str,
-        description_model: Optional[str] = None,
-        visual_model: Optional[str] = None,
+        description_model: str = "claude-3-opus-20240229",
+        visual_model: str = "claude-3-haiku-20240307",
         retries: int = 3,
     ) -> PDFParser:
         """
