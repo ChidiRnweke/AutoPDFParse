@@ -33,7 +33,7 @@ class ParsedPDFResult:
         pages: List of parsed PDF pages
     """
 
-    pages: List[PDFPage]
+    pages: list[PDFPage]
 
     def get_all_content(self) -> str:
         """Returns all page content concatenated into a single string."""

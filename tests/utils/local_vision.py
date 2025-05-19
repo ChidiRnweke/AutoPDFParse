@@ -17,7 +17,7 @@ class LocalVisionService:
     of cloud vision services without making actual API calls.
     """
 
-    layout_dependent_pattern: Optional[str] = None
+    layout_dependent_pattern: str | None = None
     content_responses: dict[str, str] = field(default_factory=lambda: {})
 
     def _hash_image(self, image: str) -> str:
@@ -76,7 +76,7 @@ class LocalVisionService:
 class LocalSyncVisionService:
     """Synchronous version of LocalVisionService for sync API testing."""
 
-    layout_dependent_pattern: Optional[str] = None
+    layout_dependent_pattern: str | None = None
     content_responses: dict[str, str] = field(default_factory=lambda: {})
 
     def _hash_image(self, image: str) -> str:

@@ -84,8 +84,8 @@ class PDFParser:
         """
         try:
             document = pymupdf.open(stream=self.pdf_content)
-            images: List[pymupdf.Pixmap] = [page.get_pixmap() for page in document]  # type: ignore
-            page_texts: List[str] = [page.get_text() for page in document]  # type: ignore
+            images: list[pymupdf.Pixmap] = [page.get_pixmap() for page in document]  # type: ignore
+            page_texts: list[str] = [page.get_text() for page in document]  # type: ignore
             if not images:
                 return ParsedPDFResult(pages=[])
 
