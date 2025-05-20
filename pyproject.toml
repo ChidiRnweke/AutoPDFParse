@@ -26,6 +26,12 @@ anthropic = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.uv.workspace]
+members = ["autopdfparse"]
+
+[tool.uv.sources]
+autopdfparse = {workspace = true}
+
 [dependency-groups]
 dev = [
     "ipykernel>=6.29.5",
