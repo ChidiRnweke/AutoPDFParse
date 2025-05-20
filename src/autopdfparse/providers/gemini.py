@@ -2,6 +2,7 @@
 Google Gemini-based PDF parser implementation.
 """
 
+import base64
 import importlib.util
 from asyncio import Semaphore
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ from autopdfparse.models import VisualModelDecision
 from autopdfparse.services import VisionService
 from autopdfparse.services.parser import PDFParser
 
-GEMINI_AVAILABLE = importlib.util.find_spec("google-genai") is not None
+GEMINI_AVAILABLE = importlib.util.find_spec("google") is not None
 
 _semaphore = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
 
@@ -37,7 +38,7 @@ class GeminiVisionService(VisionService):
     def create(
         cls,
         api_key: str,
-        description_model: str = "gemini-1.5-pro",
+        description_model: str = "gemini-1.5-flash",
         visual_model: str = "gemini-1.5-flash",
         describe_image_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
@@ -104,7 +105,7 @@ class GeminiVisionService(VisionService):
                     model=self.description_model,
                     contents=[
                         types.Part.from_bytes(
-                            data=image.encode("utf-8"),
+                            data=base64.b64decode(image),
                             mime_type="image/png",
                         ),
                         "Extract and structure all the content from this PDF page.",
@@ -148,7 +149,7 @@ class GeminiVisionService(VisionService):
                     model=self.description_model,
                     contents=[
                         types.Part.from_bytes(
-                            data=image.encode("utf-8"),
+                            data=base64.b64decode(image),
                             mime_type="image/png",
                         ),
                         "Is the content layout dependent? Respond with true or false",
@@ -179,7 +180,7 @@ class GeminiParser:
         cls,
         file_path: str,
         api_key: str,
-        description_model: str = "gemini-1.5-pro",
+        description_model: str = "gemini-1.5-flash",
         visual_model: str = "gemini-1.5-flash",
     ) -> PDFParser:
         """
@@ -215,7 +216,7 @@ class GeminiParser:
         cls,
         pdf_content: bytes,
         api_key: str,
-        description_model: str = "gemini-1.5-pro",
+        description_model: str = "gemini-1.5-flash",
         visual_model: str = "gemini-1.5-flash",
     ) -> PDFParser:
         """
