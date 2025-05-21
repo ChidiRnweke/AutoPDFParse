@@ -17,7 +17,7 @@ import pytest
 from autopdfparse.providers import AnthropicParser, GeminiParser, OpenAIParser
 
 
-def get_api_key(env_var: str) -> Optional[str]:
+def get_api_key(env_var: str) -> str | None:
     """Get API key from environment variable if it exists."""
 
     return os.environ.get(env_var)
