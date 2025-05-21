@@ -200,7 +200,7 @@ class AnthropicParser(VisionService):
             )
 
             text_content = message.content[0].text  # type: ignore
-            result = VisualModelDecision(**json_repair.loads((text_content)))  # type: ignore
+            result = VisualModelDecision(**json_repair.loads(text_content))  # type: ignore
             return result.content_is_layout_dependent
         except Exception:
             # Default to True on failure to ensure we don't miss layout-dependent content
