@@ -56,13 +56,16 @@ from autopdfparse import OpenAIParser
 
 async def main():
     # Parse from file
-    parser = await OpenAIParser.from_file(
-        file_path="path/to/document.pdf",
+    parser = await OpenAIParser.get_parser(
         api_key="your_openai_api_key"
     )
     
     # Parse the document
-    result = await parser.parse()
+    result = await parser.parse_file("path/to/document.pdf")
+    # or parse from bytes
+    with open("path/to/document.pdf", "rb") as f:
+        pdf_bytes = f.read()
+         result = await parser.parse_bytes(pdf_bytes)
     
     # Get all content concatenated
     all_content = result.get_all_content()
@@ -79,12 +82,15 @@ import asyncio
 from autopdfparse import GeminiParser
 
 async def use_gemini():
-    parser = await GeminiParser.from_file(
-        file_path="path/to/document.pdf",
-        api_key="your_google_api_key"
-    )
+    parser = await GeminiParser.get_parser(api_key="your_google_api_key")
     
-    result = await parser.parse()
+    result = await parser.parse_file("path/to/document.pdf")
+    # or parse from bytes
+    with open("path/to/document.pdf", "rb") as f:
+        pdf_bytes = f.read()
+        result = await parser.parse_bytes(pdf_bytes)
+
+    # Get all content concatenated
     print(result.get_all_content())
 ```
 
@@ -95,12 +101,13 @@ import asyncio
 from autopdfparse import AnthropicParser
 
 async def use_claude():
-    parser = await AnthropicParser.from_file(
-        file_path="path/to/document.pdf",
-        api_key="your_anthropic_api_key"
-    )
+    parser = await AnthropicParser.get_parser(api_key="your_anthropic_api_key")
     
-    result = await parser.parse()
+    result = await parser.parse_file("path/to/document.pdf")
+    # or parse from bytes
+    with open("path/to/document.pdf", "rb") as f:
+        pdf_bytes = f.read()
+        result = await parser.parse_bytes(pdf_bytes)
     print(result.get_all_content())
 ```
 
@@ -135,24 +142,21 @@ async def process_pages(parser):
 
 ```python
 # For OpenAI
-openai_parser = await OpenAIParser.from_file(
-    file_path="path/to/document.pdf",
+openai_parser = await OpenAIParser.get_parser(
     api_key="your_openai_api_key",
     description_model="gpt-4.1",     # Model for content description
     visual_model="gpt-4.1-mini",     # Model for layout detection
 )
 
 # For Gemini
-gemini_parser = await GeminiParser.from_file(
-    file_path="path/to/document.pdf",
+gemini_parser = await GeminiParser.get_parser(
     api_key="your_google_api_key",
     description_model="gemini-1.5-pro",
     visual_model="gemini-1.5-flash"
 )
 
 # For Anthropic
-anthropic_parser = await AnthropicParser.from_file(
-    file_path="path/to/document.pdf",
+anthropic_parser = await AnthropicParser.get_parser(
     api_key="your_anthropic_api_key",
     description_model="claude-3-opus-20240229",
     visual_model="claude-3-haiku-20240307"
@@ -166,10 +170,7 @@ from autopdfparse import OpenAIParser, PDFParsingError, APIError, ModelError
 
 async def handle_errors():
     try:
-        parser = await OpenAIParser.from_file(
-            file_path="path/to/document.pdf",
-            api_key="your_openai_api_key"
-        )
+        parser = await OpenAIParser.get_parser(api_key="your_openai_api_key")
         result = await parser.parse()
     except ModelError as e:
         print(f"Model error (missing dependency?): {e}")
@@ -194,8 +195,7 @@ from autopdfparse.default_prompts import describe_image_system_prompt
 # Create a modified prompt
 my_custom_prompt = describe_image_system_prompt + "\nAdditional instructions: Focus on extracting tabular data with precision."
 
-parser = await OpenAIParser.from_file(
-    file_path="path/to/document.pdf",
+parser = await OpenAIParser.get_parser(
     api_key="your_openai_api_key",
     description_prompt=my_custom_prompt  # Custom prompt for content description
 )
@@ -203,14 +203,22 @@ parser = await OpenAIParser.from_file(
 
 #### Implementing a Custom Provider
 
-You can create your own provider by implementing the `VisionService` protocol and using it with the `PDFParser` class:
+You can create your own provider by implementing the `VisionService` protocol and using it with the `PDFParser` class. This typically involves creating your `VisionService` implementation and then a helper class or factory function to instantiate `PDFParser` with your service.
 
 ```python
+import asyncio
 from autopdfparse.services import VisionService, PDFParser
+from dataclasses import dataclass
 
+
+@dataclass
 class CustomVisionService(VisionService):
-    """A simple custom vision service example."""
+    """A simple custom vision service example.
+    It might take arguments in its __init__ method, e.g., API keys or configurations.
+    For this example, it takes no arguments.
+    """
     
+        
     async def describe_image_content(self, image: str) -> str:
         """
         Custom implementation of image content description.
@@ -222,6 +230,7 @@ class CustomVisionService(VisionService):
             Description of the image content
         """
         # Your custom logic here - this example just returns a placeholder
+        # If CustomVisionService had an API key, it would be used here.
         return "Hello world! This is a custom image description."
     
     async def is_layout_dependent(self, image: str) -> bool:
@@ -237,27 +246,37 @@ class CustomVisionService(VisionService):
         # Your custom logic here - this example always returns False
         return False
 
-class CustomParser:
-    @classmethod
-    async def from_file(cls, file_path: str, **kwargs) -> PDFParser:
-        """Create a parser from a file path."""
-        # Create your custom vision service
-        vision_service = CustomVisionService()
+
+    def get_parser(cls, **kwargs_for_vision_service) -> PDFParser:
+        """
+        Creates and returns a PDFParser instance configured with CustomVisionService.
+        The PDF is not loaded at this stage.
         
-        # Use the standard PDFParser with your custom vision service
-        return await PDFParser.create(file_path=file_path, vision_service=vision_service)
-    
-    @classmethod
-    async def from_bytes(cls, pdf_content: bytes, **kwargs) -> PDFParser:
-        """Create a parser from bytes."""
-        vision_service = CustomVisionService()
-        return await PDFParser.from_bytes(pdf_content=pdf_content, vision_service=vision_service)
+        Args:
+            **kwargs_for_vision_service: Arguments to pass to CustomVisionService constructor.
+        
+        Returns:
+            A PDFParser instance.
+        """
+        # Instantiate your custom vision service
+        # Pass any necessary arguments to CustomVisionService here
+        vision_service = CustomVisionService(**kwargs_for_vision_service)
+        
+        # Return a PDFParser instance configured with your custom vision service
+        return PDFParser(vision_service=vision_service)
 
 # Usage
 async def main():
-    parser = await CustomParser.from_file("path/to/document.pdf")
-    result = await parser.parse()
+
+    custom_parser = CustomParser.get_parser() 
+    
+
+    result = await custom_parser.parse_file("path/to/document.pdf")
     print(result.get_all_content())
+
+if __name__ == "__main__":
+    asyncio.run(main())
+    pass
 ```
 
 You can implement more sophisticated integrations with other AI providers or your own models by following this pattern.
@@ -270,62 +289,58 @@ In addition to the asynchronous API, AutoPDFParse also provides a synchronous AP
 from autopdfparse.sync import OpenAIParser
 
 # Create a parser
-parser = OpenAIParser.from_file(
-    file_path="path/to/document.pdf",
-    api_key="your_openai_api_key"
-)
+parser = OpenAIParser.get_parser(api_key="your_openai_api_key")
 
 # Parse the document (no await needed)
-result = parser.parse()
+result = parser.parse_file("path/to/document.pdf")
+# or parse from bytes
+with open("path/to/document.pdf", "rb") as f:
+    pdf_bytes = f.read()
+    result = parser.parse_bytes(pdf_bytes)
 
 # Access the content
 content = result.get_all_content()
 print(content)
 ```
 
-The synchronous API supports all the same features as the asynchronous API:
+The synchronous API supports all the same features as the asynchronous API.
 
-```python
-from autopdfparse.sync import GeminiParser, AnthropicParser
-
-# Using Google Gemini
-gemini_parser = GeminiParser.from_file(
-    file_path="path/to/document.pdf",
-    api_key="your_google_api_key",
-    description_model="gemini-1.5-pro"
-)
-gemini_result = gemini_parser.parse()
-
-# Using Anthropic Claude
-anthropic_parser = AnthropicParser.from_file(
-    file_path="path/to/document.pdf",
-    api_key="your_anthropic_api_key"
-)
-anthropic_result = anthropic_parser.parse()
-```
 
 Creating a custom provider with the synchronous API:
 
 ```python
-from autopdfparse.sync.services import VisionService, PDFParser
+from autopdfparse.sync.services import VisionService as SyncVisionService
+from autopdfparse.sync.services import PDFParser as SyncPDFParser
 
-class CustomVisionService(VisionService):
+class CustomSyncVisionService(SyncVisionService):
     """A simple synchronous custom vision service."""
     
+    # Example: def __init__(self, custom_api_key: str):
+    # self.api_key = custom_api_key
+
     def describe_image_content(self, image: str) -> str:
         # Synchronous implementation
-        return "Image description here"
+        return "Image description here (sync)"
     
     def is_layout_dependent(self, image: str) -> bool:
         # Synchronous implementation
         return False
 
-# Use with PDFParser
-parser = PDFParser.create(
-    file_path="path/to/document.pdf",
-    vision_service=CustomVisionService()
-)
-result = parser.parse()
+    @classmethod
+    def get_parser(cls, **kwargs_for_vision_service) -> SyncPDFParser:
+        """
+        Creates and returns a synchronous PDFParser instance configured 
+        with CustomSyncVisionService. The PDF is not loaded at this stage.
+        
+        Args:
+            **kwargs_for_vision_service: Arguments to pass to CustomSyncVisionService constructor.
+
+        Returns:
+            A synchronous PDFParser instance.
+        """
+        vision_service = CustomSyncVisionService(**kwargs_for_vision_service)
+        return SyncPDFParser(vision_service=vision_service)
+
 ```
 
 ## Requirements

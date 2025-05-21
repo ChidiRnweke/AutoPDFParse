@@ -12,3 +12,4 @@ wheels/
 # Used during local development
 test.pdf
 test.ipynb
+.env

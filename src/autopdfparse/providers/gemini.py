@@ -23,7 +23,7 @@ _semaphore = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
 
 
 @dataclass
-class GeminiVisionService(VisionService):
+class GeminiParser(VisionService):
     """
     Implementation of VisionService using Google's Gemini vision capabilities.
     """
@@ -35,16 +35,46 @@ class GeminiVisionService(VisionService):
     layout_dependent_prompt: str
 
     @classmethod
-    def create(
+    def get_parser(
         cls,
         api_key: str,
         description_model: str = "gemini-1.5-flash",
         visual_model: str = "gemini-1.5-flash",
         describe_image_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
-    ) -> "GeminiVisionService":
+    ) -> PDFParser:
         """
-        Create a GeminiVisionService instance.
+        Create a PDF parser instance using Google's Gemini vision capabilities.
+
+        Args:
+            api_key: Google API key
+            description_model: Model to use for describing content
+            visual_model: Model to use for layout dependency detection
+
+        Returns:
+            PDFParser instance
+        """
+        return PDFParser(
+            vision_service=cls._create_vision_service(
+                api_key=api_key,
+                description_model=description_model,
+                visual_model=visual_model,
+                describe_image_prompt=describe_image_prompt,
+                layout_dependent_prompt=layout_dependent_prompt,
+            )
+        )
+
+    @classmethod
+    def _create_vision_service(
+        cls,
+        api_key: str,
+        description_model: str = "gemini-1.5-flash",
+        visual_model: str = "gemini-1.5-flash",
+        describe_image_prompt: str = describe_image_system_prompt,
+        layout_dependent_prompt: str = layout_dependent_system_prompt,
+    ) -> "GeminiParser":
+        """
+        Create a GeminiParser instance.
 
         Args:
             api_key: Google API key
@@ -165,88 +195,3 @@ class GeminiVisionService(VisionService):
         except Exception:
             # Default to True on failure to ensure we don't miss layout-dependent content
             return True
-
-
-class GeminiParser:
-    """
-    Factory class for creating PDF parsers that use Google Gemini's vision models.
-
-    This class provides convenience methods for creating PDFParser instances
-    that are configured to use Gemini's vision services.
-    """
-
-    @classmethod
-    def from_file(
-        cls,
-        file_path: str,
-        api_key: str,
-        description_model: str = "gemini-1.5-flash",
-        visual_model: str = "gemini-1.5-flash",
-    ) -> PDFParser:
-        """
-        Create a PDF parser from a file path using Google Gemini vision services.
-
-        Args:
-            file_path: Path to the PDF file
-            api_key: Google API key
-            description_model: Model to use for describing content
-            visual_model: Model to use for layout dependency detection
-
-        Returns:
-            PDFParser instance configured with GeminiVisionService
-
-        Raises:
-            ModelError: If Google GenerativeAI package is not installed
-        """
-        if not GEMINI_AVAILABLE:
-            raise ModelError(
-                "google-genai package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
-            )
-
-        vision_service = GeminiVisionService.create(
-            api_key=api_key,
-            description_model=description_model,
-            visual_model=visual_model,
-        )
-
-        return PDFParser.create(file_path=file_path, vision_service=vision_service)
-
-    @classmethod
-    def from_bytes(
-        cls,
-        pdf_content: bytes,
-        api_key: str,
-        description_model: str = "gemini-1.5-flash",
-        visual_model: str = "gemini-1.5-flash",
-    ) -> PDFParser:
-        """
-        Create a PDF parser from bytes using Google Gemini vision services.
-
-        Args:
-            pdf_content: PDF content as bytes
-            api_key: Google API key
-            description_model: Model to use for describing content
-            visual_model: Model to use for layout dependency detection
-            retries: Number of retries for API calls
-
-        Returns:
-            PDFParser instance configured with GeminiVisionService
-
-        Raises:
-            ModelError: If Google GenerativeAI package is not installed
-        """
-        if not GEMINI_AVAILABLE:
-            raise ModelError(
-                "Google GenerativeAI package is not installed. Install it with 'pip install \"autopdfparse[gemini]\"'"
-            )
-
-        vision_service = GeminiVisionService.create(
-            api_key=api_key,
-            description_model=description_model,
-            visual_model=visual_model,
-        )
-
-        return PDFParser.from_bytes(
-            pdf_content=pdf_content,
-            vision_service=vision_service,
-        )

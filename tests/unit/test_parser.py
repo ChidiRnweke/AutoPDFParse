@@ -12,16 +12,6 @@ from autopdfparse.services import PDFParser
 
 
 @pytest.mark.asyncio
-async def test_parser_from_bytes(sample_pdf_bytes, local_vision_service):
-    """Test creating a parser from bytes."""
-    parser = PDFParser.from_bytes(
-        pdf_content=sample_pdf_bytes, vision_service=local_vision_service
-    )
-    assert parser is not None
-    assert parser.pdf_content == sample_pdf_bytes
-
-
-@pytest.mark.asyncio
 async def test_parser_create_from_file(sample_pdf_bytes, local_vision_service):
     """Test creating a parser from a file path."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp:
@@ -29,11 +19,9 @@ async def test_parser_create_from_file(sample_pdf_bytes, local_vision_service):
         temp_path = temp.name
 
     try:
-        parser = PDFParser.create(
-            file_path=temp_path, vision_service=local_vision_service
-        )
+        parser = PDFParser(vision_service=local_vision_service)
+        await parser.parse_file(file_path=temp_path)
         assert parser is not None
-        assert parser.pdf_content == sample_pdf_bytes
     finally:
         os.unlink(temp_path)
 
@@ -42,9 +30,8 @@ async def test_parser_create_from_file(sample_pdf_bytes, local_vision_service):
 async def test_parser_create_file_not_found(local_vision_service):
     """Test error handling when file is not found."""
     with pytest.raises(PDFParsingError) as excinfo:
-        PDFParser.create(
-            file_path="/nonexistent/path.pdf",
-            vision_service=local_vision_service,
+        await PDFParser(vision_service=local_vision_service).parse_file(
+            file_path="non_existent_file.pdf"
         )
     assert "File not found" in str(excinfo.value)
 
@@ -52,11 +39,8 @@ async def test_parser_create_file_not_found(local_vision_service):
 @pytest.mark.asyncio
 async def test_parser_parse_basic_pdf(sample_pdf_bytes, local_vision_service):
     """Test parsing a basic PDF document."""
-    parser = PDFParser.from_bytes(
-        pdf_content=sample_pdf_bytes,
-        vision_service=local_vision_service,
-    )
-    result = await parser.parse()
+    parser = PDFParser(vision_service=local_vision_service)
+    result = await parser.parse_bytes(pdf_content=sample_pdf_bytes)
 
     assert result is not None
     assert len(result.pages) == 1
@@ -68,10 +52,8 @@ async def test_parser_parse_basic_pdf(sample_pdf_bytes, local_vision_service):
 @pytest.mark.asyncio
 async def test_parser_parse_multipage_pdf(multipage_pdf_bytes, local_vision_service):
     """Test parsing a multi-page PDF document."""
-    parser = PDFParser.from_bytes(
-        pdf_content=multipage_pdf_bytes, vision_service=local_vision_service
-    )
-    result = await parser.parse()
+    parser = PDFParser(vision_service=local_vision_service)
+    result = await parser.parse_bytes(pdf_content=multipage_pdf_bytes)
 
     assert result is not None
     assert len(result.pages) == 2
@@ -89,11 +71,8 @@ async def test_parser_with_layout_dependent_content(
     layout_dependent_vision_service,
 ):
     """Test parsing when content is determined to be layout-dependent."""
-    parser = PDFParser.from_bytes(
-        pdf_content=sample_pdf_bytes,
-        vision_service=layout_dependent_vision_service,
-    )
-    result = await parser.parse()
+    parser = PDFParser(vision_service=layout_dependent_vision_service)
+    result = await parser.parse_bytes(pdf_content=sample_pdf_bytes)
 
     assert result.pages[0]._from_llm is True
     assert "This page contains" in result.pages[0].content
@@ -104,10 +83,8 @@ async def test_parser_with_layout_independent_content(
     sample_pdf_bytes, layout_independent_vision_service
 ):
     """Test parsing when content is determined to be layout-independent."""
-    parser = PDFParser.from_bytes(
-        pdf_content=sample_pdf_bytes, vision_service=layout_independent_vision_service
-    )
-    result = await parser.parse()
+    parser = PDFParser(vision_service=layout_independent_vision_service)
+    result = await parser.parse_bytes(pdf_content=sample_pdf_bytes)
 
     assert result.pages[0]._from_llm is False
     assert "This is a test PDF document" in result.pages[0].content
@@ -116,10 +93,8 @@ async def test_parser_with_layout_independent_content(
 @pytest.mark.asyncio
 async def test_parser_with_empty_pdf(empty_pdf_bytes, local_vision_service):
     """Test parsing an empty PDF."""
-    parser = PDFParser.from_bytes(
-        pdf_content=empty_pdf_bytes, vision_service=local_vision_service
-    )
-    result = await parser.parse()
+    parser = PDFParser(vision_service=local_vision_service)
+    result = await parser.parse_bytes(pdf_content=empty_pdf_bytes)
 
     assert result is not None
     assert len(result.pages) == 1
