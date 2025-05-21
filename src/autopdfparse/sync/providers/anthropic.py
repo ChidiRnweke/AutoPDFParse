@@ -17,7 +17,7 @@ ANTHROPIC_AVAILABLE = importlib.util.find_spec("anthropic") is not None
 
 
 @dataclass
-class AnthropicVisionService(VisionService):
+class AnthropicParser(VisionService):
     """
     Synchronous implementation of VisionService using Anthropic's Claude vision capabilities.
     """
@@ -29,16 +29,16 @@ class AnthropicVisionService(VisionService):
     layout_dependent_prompt: str
 
     @classmethod
-    def create(
+    def get_parser(
         cls,
         api_key: str,
-        description_model: str = "claude-3-opus-20240229",
-        visual_model: str = "claude-3-haiku-20240307",
+        description_model: str = "claude-3-7-sonnet-latest",
+        visual_model: str = "claude-3-5-haiku-latest",
         describe_image_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
-    ) -> "AnthropicVisionService":
+    ) -> PDFParser:
         """
-        Create an AnthropicVisionService instance.
+        Create a PDF parser instance using Anthropic's vision capabilities.
 
         Args:
             api_key: Anthropic API key
@@ -46,7 +46,37 @@ class AnthropicVisionService(VisionService):
             visual_model: Model to use for layout dependency detection
 
         Returns:
-            AnthropicVisionService instance
+            PDFParser instance
+        """
+        return PDFParser(
+            vision_service=cls._create_vision_service(
+                api_key=api_key,
+                description_model=description_model,
+                visual_model=visual_model,
+                describe_image_prompt=describe_image_prompt,
+                layout_dependent_prompt=layout_dependent_prompt,
+            )
+        )
+
+    @classmethod
+    def _create_vision_service(
+        cls,
+        api_key: str,
+        description_model: str = "claude-3-7-sonnet-latest",
+        visual_model: str = "claude-3-5-haiku-latest",
+        layout_dependent_prompt: str = layout_dependent_system_prompt,
+        describe_image_prompt: str = describe_image_system_prompt,
+    ) -> "AnthropicParser":
+        """
+        Create an AnthropicParser instance.
+
+        Args:
+            api_key: Anthropic API key
+            description_model: Model to use for describing content
+            visual_model: Model to use for layout dependency detection
+
+        Returns:
+            AnthropicParser instance
 
         Raises:
             ModelError: If Anthropic package is not installed
@@ -60,8 +90,8 @@ class AnthropicVisionService(VisionService):
             api_key=api_key,
             description_model=description_model,
             visual_model=visual_model,
-            describe_image_prompt=describe_image_prompt,
             layout_dependent_prompt=layout_dependent_prompt,
+            describe_image_prompt=describe_image_prompt,
         )
 
     def describe_image_content(self, image: str) -> str:
@@ -175,95 +205,3 @@ class AnthropicVisionService(VisionService):
         except Exception:
             # Default to True on failure to ensure we don't miss layout-dependent content
             return True
-
-
-class AnthropicParser:
-    """
-    Factory class for creating PDF parsers that use Anthropic's Claude vision models.
-
-    This class provides convenience methods for creating PDFParser instances
-    that are configured to use Anthropic's vision services.
-    """
-
-    @classmethod
-    def from_file(
-        cls,
-        file_path: str,
-        api_key: str,
-        description_model: str = "claude-3-opus-20240229",
-        visual_model: str = "claude-3-haiku-20240307",
-        description_prompt: str = describe_image_system_prompt,
-        layout_dependent_prompt: str = layout_dependent_system_prompt,
-    ) -> PDFParser:
-        """
-        Create a PDF parser from a file path using Claude vision services.
-
-        Args:
-            file_path: Path to the PDF file
-            api_key: Anthropic API key
-            description_model: Model to use for describing content
-            visual_model: Model to use for layout dependency detection
-
-        Returns:
-            PDFParser instance configured with AnthropicVisionService
-
-        Raises:
-            ModelError: If Anthropic package is not installed
-        """
-        if not ANTHROPIC_AVAILABLE:
-            raise ModelError(
-                "Anthropic package is not installed. Install it with 'pip install \"autopdfparse[anthropic]\"'"
-            )
-
-        vision_service = AnthropicVisionService.create(
-            api_key=api_key,
-            description_model=description_model,
-            visual_model=visual_model,
-            describe_image_prompt=description_prompt,
-            layout_dependent_prompt=layout_dependent_prompt,
-        )
-
-        return PDFParser.create(file_path=file_path, vision_service=vision_service)
-
-    @classmethod
-    def from_bytes(
-        cls,
-        pdf_content: bytes,
-        api_key: str,
-        description_model: str = "claude-3-opus-20240229",
-        visual_model: str = "claude-3-haiku-20240307",
-        description_prompt: str = describe_image_system_prompt,
-        layout_dependent_prompt: str = layout_dependent_system_prompt,
-    ) -> PDFParser:
-        """
-        Create a PDF parser from bytes using Claude vision services.
-
-        Args:
-            pdf_content: PDF content as bytes
-            api_key: Anthropic API key
-            description_model: Model to use for describing content
-            visual_model: Model to use for layout dependency detection
-
-        Returns:
-            PDFParser instance configured with AnthropicVisionService
-
-        Raises:
-            ModelError: If Anthropic package is not installed
-        """
-        if not ANTHROPIC_AVAILABLE:
-            raise ModelError(
-                "Anthropic package is not installed. Install it with 'pip install \"autopdfparse[anthropic]\"'"
-            )
-
-        vision_service = AnthropicVisionService.create(
-            api_key=api_key,
-            description_model=description_model,
-            visual_model=visual_model,
-            describe_image_prompt=description_prompt,
-            layout_dependent_prompt=layout_dependent_prompt,
-        )
-
-        return PDFParser.from_bytes(
-            pdf_content=pdf_content,
-            vision_service=vision_service,
-        )

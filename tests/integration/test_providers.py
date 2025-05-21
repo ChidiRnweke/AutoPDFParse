@@ -29,12 +29,11 @@ async def test_openai_integration(sample_pdf_bytes):
     """Test end-to-end parsing with OpenAI."""
     api_key: str = cast(str, get_api_key("OPENAI_API_KEY"))
 
-    pdf_parser = OpenAIParser.from_bytes(
-        pdf_content=sample_pdf_bytes,
+    pdf_parser = OpenAIParser.get_parser(
         api_key=api_key,
     )
 
-    result = await pdf_parser.parse()
+    result = await pdf_parser.parse_bytes(pdf_content=sample_pdf_bytes)
     assert result is not None
     assert len(result.pages) > 0
     assert all(page.content for page in result.pages)
@@ -48,12 +47,9 @@ async def test_anthropic_integration(sample_pdf_bytes):
     """Test end-to-end parsing with Anthropic."""
     api_key: str = cast(str, get_api_key("ANTHROPIC_API_KEY"))
 
-    pdf_parser = AnthropicParser.from_bytes(
-        pdf_content=sample_pdf_bytes,
-        api_key=api_key,
-    )
+    pdf_parser = AnthropicParser.get_parser(api_key=api_key)
 
-    result = await pdf_parser.parse()
+    result = await pdf_parser.parse_bytes(pdf_content=sample_pdf_bytes)
     assert result is not None
     assert len(result.pages) > 0
     assert all(page.content for page in result.pages)
@@ -64,12 +60,9 @@ async def test_anthropic_integration(sample_pdf_bytes):
 async def test_gemini_integration(sample_pdf_bytes):
     """Test end-to-end parsing with Google Gemini."""
     api_key: str = cast(str, get_api_key("GOOGLE_API_KEY"))
-    pdf_parser = GeminiParser.from_bytes(
-        pdf_content=sample_pdf_bytes,
-        api_key=api_key,
-    )
+    pdf_parser = GeminiParser.get_parser(api_key=api_key)
 
-    result = await pdf_parser.parse()
+    result = await pdf_parser.parse_bytes(pdf_content=sample_pdf_bytes)
     assert result is not None
     assert len(result.pages) > 0
     assert all(page.content for page in result.pages)

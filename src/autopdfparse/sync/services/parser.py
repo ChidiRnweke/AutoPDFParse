@@ -4,7 +4,6 @@ Synchronous base parser implementations.
 
 import logging
 from dataclasses import dataclass
-from typing import List
 
 import pymupdf
 
@@ -23,56 +22,9 @@ class PDFParser:
     analysis to a pluggable vision service.
     """
 
-    pdf_content: bytes
     vision_service: VisionService
 
-    @classmethod
-    def create(cls, file_path: str, vision_service: VisionService) -> "PDFParser":
-        """
-        Factory method to create a parser from a file path.
-
-        Args:
-            file_path: Path to the PDF file
-            vision_service: Service for visual analysis
-            image_retries: Number of retries for image processing
-
-        Returns:
-            A PDFParser instance
-
-        Raises:
-            PDFParsingError: If the file cannot be read or is not a valid PDF
-        """
-        try:
-            with open(file_path, "rb") as f:
-                pdf_content = f.read()
-
-            return cls(
-                pdf_content=pdf_content,
-                vision_service=vision_service,
-            )
-        except FileNotFoundError:
-            raise PDFParsingError(f"File not found: {file_path}")
-        except Exception as e:
-            raise PDFParsingError(f"Error reading PDF file: {str(e)}")
-
-    @classmethod
-    def from_bytes(
-        cls, pdf_content: bytes, vision_service: VisionService
-    ) -> "PDFParser":
-        """
-        Factory method to create a parser from bytes.
-
-        Args:
-            pdf_content: PDF content as bytes
-            vision_service: Service for visual analysis
-            image_retries: Number of retries for image processing
-
-        Returns:
-            A PDFParser instance
-        """
-        return cls(pdf_content=pdf_content, vision_service=vision_service)
-
-    def parse(self) -> ParsedPDFResult:
+    def parse_file(self, file_path: str) -> ParsedPDFResult:
         """
         Parse the PDF document using the provided vision service.
 
@@ -83,9 +35,29 @@ class PDFParser:
             PDFParsingError: If parsing fails
         """
         try:
-            document = pymupdf.open(stream=self.pdf_content)
+            with open(file_path, "rb") as f:
+                pdf_content = f.read()
+        except FileNotFoundError:
+            raise PDFParsingError(f"File not found: {file_path}")
+        except Exception as e:
+            raise PDFParsingError(f"Failed to read file: {file_path}. Error: {str(e)}")
+        return self.parse_bytes(pdf_content)
+
+    def parse_bytes(self, pdf_content: bytes) -> ParsedPDFResult:
+        """
+        Parse the PDF document using the provided vision service.
+
+        Returns:
+            ParsedPDFResult with extracted content
+
+        Raises:
+            PDFParsingError: If parsing fails
+        """
+        try:
+            document = pymupdf.open(stream=pdf_content)
             images: list[pymupdf.Pixmap] = [page.get_pixmap() for page in document]  # type: ignore
             page_texts: list[str] = [page.get_text() for page in document]  # type: ignore
+
             if not images:
                 return ParsedPDFResult(pages=[])
 

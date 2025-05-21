@@ -17,7 +17,7 @@ OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
 
 
 @dataclass
-class OpenAIVisionService(VisionService):
+class OpenAIParser(VisionService):
     """
     Synchronous implementation of VisionService using OpenAI's vision capabilities.
     """
@@ -29,16 +29,16 @@ class OpenAIVisionService(VisionService):
     layout_dependent_prompt: str
 
     @classmethod
-    def create(
+    def get_parser(
         cls,
         api_key: str,
         description_model: str = "gpt-4.1",
         visual_model: str = "gpt-4.1-mini",
         describe_image_prompt: str = describe_image_system_prompt,
         layout_dependent_prompt: str = layout_dependent_system_prompt,
-    ) -> "OpenAIVisionService":
+    ) -> PDFParser:
         """
-        Create an OpenAIVisionService instance.
+        Create a PDF parser instance using OpenAI's vision capabilities.
 
         Args:
             api_key: OpenAI API key
@@ -46,7 +46,38 @@ class OpenAIVisionService(VisionService):
             visual_model: Model to use for layout dependency detection
 
         Returns:
-            OpenAIVisionService instance
+            PDFParser instance
+        """
+        return PDFParser(
+            vision_service=cls._create_vision_service(
+                api_key=api_key,
+                description_model=description_model,
+                visual_model=visual_model,
+                describe_image_prompt=describe_image_prompt,
+                layout_dependent_prompt=layout_dependent_prompt,
+            )
+        )
+
+    @classmethod
+    def _create_vision_service(
+        cls,
+        api_key: str,
+        description_model: str = "gpt-4.1",
+        visual_model: str = "gpt-4.1-mini",
+        describe_image_prompt: str = describe_image_system_prompt,
+        layout_dependent_prompt: str = layout_dependent_system_prompt,
+    ) -> "OpenAIParser":
+        """
+        Create an OpenAIParser instance.
+
+        Args:
+            api_key: OpenAI API key
+            description_model: Model to use for describing content
+            visual_model: Model to use for layout dependency detection
+            retries: Number of retries for API calls
+
+        Returns:
+            OpenAIParser instance
 
         Raises:
             ModelError: If OpenAI package is not installed
@@ -168,95 +199,3 @@ class OpenAIVisionService(VisionService):
         except Exception:
             # Default to True on failure to ensure we don't miss layout-dependent content
             return True
-
-
-class OpenAIParser:
-    """
-    Factory class for creating synchronous PDF parsers that use OpenAI's vision models.
-
-    This class provides convenience methods for creating PDFParser instances
-    that are configured to use OpenAI's vision services.
-    """
-
-    @classmethod
-    def from_file(
-        cls,
-        file_path: str,
-        api_key: str,
-        description_model: str = "gpt-4.1",
-        visual_model: str = "gpt-4.1-mini",
-        description_prompt: str = describe_image_system_prompt,
-        layout_dependent_prompt: str = layout_dependent_system_prompt,
-    ) -> PDFParser:
-        """
-        Create a synchronous PDF parser from a file path using OpenAI vision services.
-
-        Args:
-            file_path: Path to the PDF file
-            api_key: OpenAI API key
-            description_model: Model to use for describing content
-            visual_model: Model to use for layout dependency detection
-
-        Returns:
-            PDFParser instance configured with OpenAIVisionService
-
-        Raises:
-            ModelError: If OpenAI package is not installed
-        """
-        if not OPENAI_AVAILABLE:
-            raise ModelError(
-                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
-            )
-
-        vision_service = OpenAIVisionService.create(
-            api_key=api_key,
-            description_model=description_model,
-            visual_model=visual_model,
-            describe_image_prompt=description_prompt,
-            layout_dependent_prompt=layout_dependent_prompt,
-        )
-
-        return PDFParser.create(file_path=file_path, vision_service=vision_service)
-
-    @classmethod
-    def from_bytes(
-        cls,
-        pdf_content: bytes,
-        api_key: str,
-        description_model: str = "gpt-4.1",
-        visual_model: str = "gpt-4.1-mini",
-        description_prompt: str = describe_image_system_prompt,
-        layout_dependent_prompt: str = layout_dependent_system_prompt,
-    ) -> PDFParser:
-        """
-        Create a synchronous PDF parser from bytes using OpenAI vision services.
-
-        Args:
-            pdf_content: PDF content as bytes
-            api_key: OpenAI API key
-            description_model: Model to use for describing content
-            visual_model: Model to use for layout dependency detection
-
-        Returns:
-            PDFParser instance configured with OpenAIVisionService
-
-        Raises:
-            ModelError: If OpenAI package is not installed
-        """
-        if not OPENAI_AVAILABLE:
-            raise ModelError(
-                "OpenAI package is not installed. Install it with 'pip install \"autopdfparse[openai]\"'"
-            )
-
-        vision_service = OpenAIVisionService.create(
-            api_key=api_key,
-            description_model=description_model,
-            visual_model=visual_model,
-            describe_image_prompt=description_prompt,
-            layout_dependent_prompt=layout_dependent_prompt,
-        )
-
-        return PDFParser.from_bytes(
-            pdf_content=pdf_content,
-            vision_service=vision_service,
-        )
