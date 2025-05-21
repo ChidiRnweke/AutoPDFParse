@@ -5,6 +5,7 @@ OpenAI-based PDF parser implementation.
 import importlib.util
 from asyncio import Semaphore
 from dataclasses import dataclass
+from typing import ClassVar
 
 from autopdfparse.config import Config
 from autopdfparse.default_prompts import (
@@ -16,7 +17,6 @@ from autopdfparse.models import VisualModelDecision
 from autopdfparse.services import PDFParser, VisionService
 
 OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
-_semaphore = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
 
 
 @dataclass
@@ -30,6 +30,7 @@ class OpenAIParser(VisionService):
     visual_model: str
     describe_image_prompt: str
     layout_dependent_prompt: str
+    _semaphore: ClassVar[Semaphore] = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
 
     @classmethod
     def get_parser(
@@ -123,7 +124,7 @@ class OpenAIParser(VisionService):
             from openai import AsyncOpenAI
 
             openai = AsyncOpenAI(api_key=self.api_key)
-            async with _semaphore:
+            async with self._semaphore:
                 response = await openai.responses.create(
                     input=[
                         {
@@ -173,7 +174,7 @@ class OpenAIParser(VisionService):
 
         try:
             openai = AsyncOpenAI(api_key=self.api_key)
-            async with _semaphore:
+            async with self._semaphore:
                 response = await openai.responses.parse(
                     input=[
                         {

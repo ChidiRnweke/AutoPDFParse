@@ -119,10 +119,10 @@ You can configure the maximum number of concurrent API requests to avoid rate li
 from autopdfparse import Config
 
 # Set the maximum number of concurrent API requests
-Config.MAX_CONCURRENT_REQUESTS = 10  # Default is 25
+OpenAIParser.MAX_CONCURRENT_REQUESTS = 5
 
 # Then proceed with parsing
-parser = await OpenAIParser.from_file(...)
+parser = await OpenAIParser.get_parser(...)
 ```
 
 ### Accessing Individual Pages

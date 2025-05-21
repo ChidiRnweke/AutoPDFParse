@@ -6,6 +6,7 @@ import base64
 import importlib.util
 from asyncio import Semaphore
 from dataclasses import dataclass
+from typing import ClassVar
 
 from autopdfparse.config import Config
 from autopdfparse.default_prompts import (
@@ -19,8 +20,6 @@ from autopdfparse.services.parser import PDFParser
 
 GEMINI_AVAILABLE = importlib.util.find_spec("google") is not None
 
-_semaphore = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
-
 
 @dataclass
 class GeminiParser(VisionService):
@@ -33,6 +32,7 @@ class GeminiParser(VisionService):
     visual_model: str
     describe_image_prompt: str
     layout_dependent_prompt: str
+    _semaphore: ClassVar[Semaphore] = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
 
     @classmethod
     def get_parser(
@@ -129,7 +129,7 @@ class GeminiParser(VisionService):
             client = genai.Client(api_key=self.api_key)
 
             # Use semaphore to limit concurrent requests
-            async with _semaphore:
+            async with self._semaphore:
                 # Generate the response
                 response = await client.aio.models.generate_content(
                     model=self.description_model,
@@ -174,7 +174,7 @@ class GeminiParser(VisionService):
 
             client = genai.Client(api_key=self.api_key)
 
-            async with _semaphore:
+            async with self._semaphore:
                 response = await client.aio.models.generate_content(
                     model=self.description_model,
                     contents=[

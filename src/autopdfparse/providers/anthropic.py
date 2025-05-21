@@ -5,6 +5,7 @@ Anthropic Claude-based PDF parser implementation.
 import importlib.util
 from asyncio import Semaphore
 from dataclasses import dataclass
+from typing import ClassVar
 
 from autopdfparse.config import Config
 from autopdfparse.default_prompts import (
@@ -21,8 +22,6 @@ ANTHROPIC_AVAILABLE = (
     and importlib.util.find_spec("json_repair") is not None
 )
 
-_semaphore = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
-
 
 @dataclass
 class AnthropicParser(VisionService):
@@ -35,6 +34,7 @@ class AnthropicParser(VisionService):
     visual_model: str
     describe_image_prompt: str
     layout_dependent_prompt: str
+    _semaphore: ClassVar[Semaphore] = Semaphore(Config.MAX_CONCURRENT_REQUESTS)
 
     @classmethod
     def get_parser(
@@ -126,7 +126,7 @@ class AnthropicParser(VisionService):
 
             client = AsyncAnthropic(api_key=self.api_key)
 
-            async with _semaphore:
+            async with self._semaphore:
                 message = await client.messages.create(
                     model=self.description_model,
                     max_tokens=1024,
@@ -180,7 +180,7 @@ class AnthropicParser(VisionService):
 
             client = AsyncAnthropic(api_key=self.api_key)
 
-            async with _semaphore:
+            async with self._semaphore:
                 message = await client.messages.create(
                     model=self.visual_model,
                     max_tokens=100,
