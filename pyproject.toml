@@ -1,6 +1,6 @@
 [project]
 name = "autopdfparse"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Python package for parsing PDF documents using AI vision models"
 authors = [
     {name="Chidi Nweke", email="chidi125@gmail.com"},
